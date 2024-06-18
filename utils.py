@@ -11,5 +11,5 @@ def parser():
     return _PARSER
 
 
-def query(text: str):
+def query(text: str) -> Query:
     return Query(C_LANGUAGE, text)

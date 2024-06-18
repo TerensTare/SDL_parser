@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
-gen/
+.vscode/
+out/
 __pycache__/
 *.py[cod]
 *$py.class

@@ -1,11 +1,22 @@
 import asyncio
 import time
+import shutil
+import sys
+import importlib
+
 import aiofiles
 from pcpp.pcmd import CmdPreprocessor
 
 
-from cs import CsVisitor
 import utils
+
+
+if len(sys.argv) != 2:
+    print("Usage: python sdl_parser.py <path-to-bindgen-module>")
+    sys.exit(1)
+
+mod = importlib.import_module(sys.argv[1])
+visitor = mod.Visitor
 
 
 async def parse_file(*args, input: str, output: str):
@@ -92,12 +103,12 @@ async def parse_query(file: str):
     return query
 
 
-async def parse_extension(ext: str, og_vis: CsVisitor, query):
+async def parse_extension(ext: str, og_vis, query):
     tree = await parse_file(
         input=, # path to extension header
         # input=f"include/SDL3_{ext}/SDL_{ext}.h",
         output=, # path where to save preprocessed file
-        # output=f"gen/pp/SDL_{ext}.i",
+        # output=f"out/cs/pp/SDL_{ext}.i",
     )
 
     root = tree.root_node
@@ -105,7 +116,7 @@ async def parse_extension(ext: str, og_vis: CsVisitor, query):
     vis = og_vis.another_one(
         is_ext=True,
         out=, # path to save generated C# code
-        # out=f"gen/SDL_{ext}.g.cs",
+        # out=f"out/cs/SDL_{ext}.g.cs",
         dll=, # path to the corresponding DLL
         # dll=f"SDL_{ext}.dll",
         clazz=f"SDL_{ext}",
@@ -123,17 +134,17 @@ async def main():
             input=, # path to SDL.h
             # input="include/SDL3/SDL.h",
             output=, # path to save preprocessed file
-            # output="gen/pp/SDL.i",
+            # output="out/cs/pp/SDL.i",
         ),
         parse_query("query.scm"),
     )
 
     root = tree.root_node
 
-    vis = CsVisitor(
+    vis = visitor(
         is_ext=False,
         out=, # path to save generated C# code
-        # out="gen/SDL.g.cs",
+        # out="out/cs/SDL.g.cs",
         dll="SDL3.dll",
         clazz="SDL",
     )
@@ -146,6 +157,8 @@ async def main():
     await asyncio.gather(
         *[parse_extension(ext, vis, query) for ext in exts],
     )
+
+    shutil.copyfile("gen/cs/String.cs", "out/cs/String.cs")
 
 
 start = time.time()

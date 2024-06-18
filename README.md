@@ -10,7 +10,7 @@ To run the project you need Python>=3.10. Dependencies can be acquired with
 pip install -r requirements.txt
 ```
 
-Also, before you can run the script, you need to provide some paths for the location of the headers and DLLs (if needed), as well as the folder where to generate the files into. They are left incomplete on purpose so you can simply run `py main.py` and fix the errors.
+Also, before you can run the script, you need to provide some paths for the location of the headers and DLLs (if needed), as well as the folder where to generate the files into. They are left incomplete on purpose so you can simply run `py main.py` and fix the errors, however the next line provides a sample default as to make things easier.
 
 
 For now only C# is supported for generating bindings, but supported for more languages will be added in the future. In the meantime, if you want to write your own generator, please check [cs.py](./cs.py) to understand how the generator gets the data from the parsed files.

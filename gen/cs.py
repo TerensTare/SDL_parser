@@ -3,6 +3,9 @@ from tree_sitter import Node
 import utils
 import re
 
+
+import visitor as vis
+
 # TODO:
 # - add comment if the previous node is one
 # - distinguish struct strings that are from input structs and output structs
@@ -144,8 +147,76 @@ def _parse_const(text: str) -> int:
     return end
 
 
-class CsVisitor:
+def _format_type_name(*, ty: Node, decl: Node) -> tuple[str, str, str]:
+    if ty.type == "struct_specifier":
+        ty = ty.child_by_field_name("name")
+
+    node = ty.parent  # get this before it's too late
+    ty = ty.text.decode()
+
+    if node.children[0].text == b"const":
+        cst = "const"
+    else:
+        cst = ""
+
+    ptr = ""
+    comment = ""
+
+    # TODO: handle arrays
+    # TODO: handle function pointers
+    while not decl.type.endswith("identifier"):
+        match decl.type:
+            case "pointer_declarator":
+                ptr += "*"
+                decl = decl.child_by_field_name("declarator")
+
+            case "type_qualifier":
+                decl = decl.child_by_field_name("declarator")
+
+            case "function_declarator":
+                # function_declarator > parenthesized_declarator > pointer_declarator > identifier
+                decl = decl.child_by_field_name("declarator")
+                decl = decl.named_children[0]
+                decl = decl.child_by_field_name("declarator")
+
+                ty = "IntPtr"
+
+                decl_lhs = node.text[: decl.start_byte - node.start_byte].decode()
+                decl_rhs = node.text[decl.end_byte - node.start_byte :].decode()
+
+                comment = f" // {decl_lhs} {decl_rhs}"
+
+            case _:
+                break
+
+    name = decl.text.decode()
+    if name in _PARAM_BLACKLIST:
+        name = f"@{name}"
+
+    ty = _TYPE_MAP.get(ty, ty)
+
+    return f"{cst} {ty} {ptr}".strip(), name, comment
+
+
+def _format_member(*, ty_: Node, decl_: Node) -> tuple[str, str, str]:
+    ty, name, comment = _format_type_name(
+        ty=ty_,
+        decl=decl_,
+    )
+
+    if ty.endswith("*"):
+        if ty.endswith("char *"):
+            ty = "String"
+        else:
+            ty = "IntPtr"
+
+    return ty, name, comment
+
+
+class Visitor(vis.Visitor):
     def __init__(self, *, is_ext: bool, out: str, dll: str, clazz: str) -> None:
+        super().__init__()
+
         self._file = open(out, "w")
 
         prelude = _EXT_PRELUDE if is_ext else _PRELUDE
@@ -164,11 +235,8 @@ class CsVisitor:
 
         self._out = out
 
-        # are we parsing a bitflag currently?
-        self._parsing_bitflag = False
-
     def another_one(self, *, is_ext: bool, out: str, dll: str, clazz: str):
-        cs = CsVisitor(is_ext=is_ext, out=out, dll=dll, clazz=clazz)
+        cs = Visitor(is_ext=is_ext, out=out, dll=dll, clazz=clazz)
         cs._sdl_opaques = self._sdl_opaques
         cs._callbacks = self._callbacks
         cs._fn_macros = self._fn_macros
@@ -194,28 +262,6 @@ class CsVisitor:
 
         with open(self._out, "w") as f:
             f.write(self._data)
-
-    def visit(self, rules):
-        if "function" in rules:
-            self.visit_function(rules)
-        elif "bitflag" in rules:
-            self.visit_bitflag(rules)
-        elif "enum" in rules:
-            self.visit_enum(rules)
-        elif "opaque" in rules:
-            self.visit_opaque(rules)
-        elif "struct" in rules:
-            self.visit_struct(rules)
-        elif "union" in rules:
-            self.visit_union(rules)
-        elif "alias" in rules:
-            self.visit_alias(rules)
-        elif "callback" in rules:
-            self.visit_callback(rules)
-        elif "fn_macro" in rules:
-            self.visit_fn_macro(rules)
-        elif "const" in rules:
-            self.visit_const(rules)
 
     def visit_function(self, rules):
         name = rules["function.name"].text.decode()
@@ -330,7 +376,7 @@ class CsVisitor:
                 ty_node = member.child_by_field_name("type")
 
                 for decl_node in member.children_by_field_name("declarator"):
-                    ty, name, comment = self._format_member(
+                    ty, name, comment = _format_member(
                         ty_=ty_node,
                         decl_=decl_node,
                     )
@@ -381,7 +427,7 @@ class CsVisitor:
 
             # chances are there might be multiple declarations in the same line
             for decl_node in member.children_by_field_name("declarator"):
-                ty, name, comment = self._format_member(
+                ty, name, comment = _format_member(
                     ty_=ty_node,
                     decl_=decl_node,
                 )
@@ -434,17 +480,7 @@ class CsVisitor:
                 f"        internal const {ty} {entry_name} = ({ty}){name}.{entry_name};\n"
             )
 
-        self._parsing_bitflag = False
-
     def visit_alias(self, rules):
-        # There is no query that can tell tree sitter to
-        # ignore typedef/#defines that are used for bitflags
-        # so we have to do it manually
-        _FILTER = {"preproc_def", "preproc_function_def"}
-        if rules["alias"].next_sibling.type in _FILTER:
-            self._parsing_bitflag = True
-            return
-
         name = rules["alias.name"].text.decode()
 
         if "alias.ptr" in rules:
@@ -512,9 +548,6 @@ class CsVisitor:
         self._fn_macros[name_re] = (ps_reg, body)
 
     def visit_const(self, rules):
-        if self._parsing_bitflag:
-            return
-
         name = rules["const.name"].text.decode()
         value = rules["const.value"].text.decode()
 
@@ -568,64 +601,13 @@ class CsVisitor:
 
         self._file.write(f"        public {prelude} {ty} {name} = {value[:end]};\n\n")
 
-    # TODO: this is static/general utility
-    def _format_type_name(self, *, ty: Node, decl: Node) -> tuple[str, str, str]:
-        if ty.type == "struct_specifier":
-            ty = ty.child_by_field_name("name")
-
-        node = ty.parent # get this before it's too late
-        ty = ty.text.decode()
-
-        if node.children[0].text == b"const":
-            cst = "const"
-        else:
-            cst = ""
-
-        ptr = ""
-        comment = ""
-
-        # TODO: handle arrays
-        # TODO: handle function pointers
-        while not decl.type.endswith("identifier"):
-            match decl.type:
-                case "pointer_declarator":
-                    ptr += "*"
-                    decl = decl.child_by_field_name("declarator")
-
-                case "type_qualifier":
-                    decl = decl.child_by_field_name("declarator")
-
-                case "function_declarator":
-                    # function_declarator > parenthesized_declarator > pointer_declarator > identifier
-                    decl = decl.child_by_field_name("declarator")
-                    decl = decl.named_children[0]
-                    decl = decl.child_by_field_name("declarator")
-
-                    ty = "IntPtr"
-
-                    decl_lhs = node.text[: decl.start_byte - node.start_byte].decode()
-                    decl_rhs = node.text[decl.end_byte - node.start_byte :].decode()
-
-                    comment = f" // {decl_lhs} {decl_rhs}"
-
-                case _:
-                    break
-
-        name = decl.text.decode()
-        if name in _PARAM_BLACKLIST:
-            name = f"@{name}"
-
-        ty = _TYPE_MAP.get(ty, ty)
-
-        return f"{cst} {ty} {ptr}".strip(), name, comment
-
     def _format_param(self, *, param: Node, docs: str):
         ty_node = param.child_by_field_name("type")
         decl_node = param.child_by_field_name("declarator")
 
         assert ty_node is not None and decl_node is not None
 
-        ty, name, comment = self._format_type_name(
+        ty, name, comment = _format_type_name(
             ty=ty_node,
             decl=decl_node,
         )
@@ -735,20 +717,6 @@ class CsVisitor:
             return f"out {ty}", name, comment
         else:
             return ty, name, comment
-
-    def _format_member(self, *, ty_: Node, decl_: Node) -> tuple[str, str, str]:
-        ty, name, comment = self._format_type_name(
-            ty=ty_,
-            decl=decl_,
-        )
-
-        if ty.endswith("*"):
-            if ty.endswith("char *"):
-                ty = "String"
-            else:
-                ty = "IntPtr"
-
-        return ty, name, comment
 
     def _expand(self) -> bool:
         expanded = False

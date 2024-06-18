@@ -50,9 +50,14 @@
 ) @callback
 
 (type_definition
-    type: (struct_specifier !body) @opaque
-    declarator: (type_identifier) @opaque.name
-)
+    type: (struct_specifier !body)
+    declarator: [
+        (type_identifier) @opaque.name
+        (pointer_declarator
+            (type_identifier) @opaque.name
+        )
+    ]
+) @opaque
 
 (type_definition
     type: [
