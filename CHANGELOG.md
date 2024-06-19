@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+
+## 2024-06-19
+
+### Added
+
+- Examples showing how to use the generated code. Check your generator's folder inside `gen`.
+- C++20 modules generator ([code](./gen/cpp.py)). Still WIP and not final.
+- Decorator `@visitor` to ease writing custom generators.
+- Documentation on how to write your own code generator ([docs](./docs/bindings-my-way.md)).
+
+
+### Changed
+
+- Adapted `@visitor` decorator on existing visitors.
+- Modified the C# generator to get closer to the other generators' style.
+
+
 ## 2024-06-18
 
 ### Added

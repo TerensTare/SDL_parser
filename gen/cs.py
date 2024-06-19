@@ -4,7 +4,7 @@ import utils
 import re
 
 
-import visitor as vis
+from visitor import visitor
 
 # TODO:
 # - add comment if the previous node is one
@@ -12,25 +12,14 @@ import visitor as vis
 # ^ (The first should be `InString` and the second should be `String`)
 # ^ one solution is to have a BiString that can be constructed from string and converted to string
 
-_EXT_PRELUDE: str = """
-using System;
-using System.Runtime;
-using System.Runtime.InteropServices;
-
-using static SDL3.SDL;
-
-namespace SDL3
-{{
-    public static class {0}
-    {{
-        private const string lib = "{1}";
-
-"""
 
 _PRELUDE: str = """
 using System;
 using System.Runtime;
 using System.Runtime.InteropServices;
+
+using static SDL3.Runtime;
+{2}
 
 namespace SDL3
 {{
@@ -47,40 +36,6 @@ namespace SDL3
     public static class {0}
     {{
         private const string lib = "{1}";
-
-        public enum SDL_bool : int
-        {{
-            SDL_FALSE = 0,
-            SDL_TRUE = 1,
-        }}
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct SDL_Time
-        {{
-            public static implicit operator long(SDL_Time value) {{ return value._value; }}
-
-            private readonly long _value;
-        }}
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct SDL_FunctionPointer
-        {{
-            public static implicit operator bool(SDL_FunctionPointer value) {{ return value._value != IntPtr.Zero; }}
-
-            private readonly IntPtr _value;
-        }}
-
-        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr SDL_malloc(IntPtr size);
-
-        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr SDL_calloc(IntPtr nmemb, IntPtr size);
-
-        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr SDL_realloc(IntPtr memblock, IntPtr size);
-
-        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void SDL_free(IntPtr memblock);
 
 """
 
@@ -213,45 +168,43 @@ def _format_member(*, ty_: Node, decl_: Node) -> tuple[str, str, str]:
     return ty, name, comment
 
 
-class Visitor(vis.Visitor):
-    def __init__(self, *, is_ext: bool, out: str, dll: str, clazz: str) -> None:
+# These are needed across all visitors, so we keep them here
+_sdl_opaques = set()
+_callbacks = set()
+_fn_macros: dict[re.Pattern[str], tuple] = {
+    re.compile(r"\bSDL_UINT64_C\b"): ([r"\bN\b"], "N"),
+    re.compile(r"\bSDL_VERSIONNUM\b"): (
+        [r"\bX\b", r"\bY\b", r"\bZ\b"],
+        "X * 1000 + Y * 100 + Z",
+    ),
+}
+_const_map = dict()
+
+
+@visitor
+class CsVisitor:
+    def __init__(self, *, out: str, dll: str, clazz: str, imp: str) -> None:
         super().__init__()
 
         self._file = open(out, "w")
 
-        prelude = _EXT_PRELUDE if is_ext else _PRELUDE
-        self._file.write(prelude.format(clazz, dll))
+        prelude = _PRELUDE
+        self._file.write(prelude.format(clazz, dll, imp))
 
-        self._sdl_opaques = set()
-        self._callbacks = set()
-        self._fn_macros: dict[re.Pattern[str], tuple] = {
-            re.compile(r"\bSDL_UINT64_C\b"): ([r"\bN\b"], "N"),
-            re.compile(r"\bSDL_VERSIONNUM\b"): (
-                [r"\bX\b", r"\bY\b", r"\bZ\b"],
-                "X * 1000 + Y * 100 + Z",
-            ),
-        }
-        self._const_map = dict()
+        self._sdl_opaques = _sdl_opaques
+        self._callbacks = _callbacks
+        self._fn_macros = _fn_macros
+        self._const_map = _const_map
 
         self._out = out
-
-    def another_one(self, *, is_ext: bool, out: str, dll: str, clazz: str):
-        cs = Visitor(is_ext=is_ext, out=out, dll=dll, clazz=clazz)
-        cs._sdl_opaques = self._sdl_opaques
-        cs._callbacks = self._callbacks
-        cs._fn_macros = self._fn_macros
-        cs._const_map = self._const_map
-
-        return cs
 
     def __del__(self) -> None:
         self._file.write("    }\n}\n")
         self._file.close()
 
         with open(self._out, "r") as f:
-            data = f.read()
+            self._data = f.read()
 
-        self._data = data
         while self._expand():
             # keep expanding until no more expansions are possible
             # TODO: as an optimization, expand only on the expanded text

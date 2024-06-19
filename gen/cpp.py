@@ -1,6 +1,7 @@
 from tree_sitter import Node
 
-import visitor as vis
+
+from visitor import visitor
 
 _PRELUDE: str = """
 module;
@@ -92,13 +93,11 @@ def _cut_similarity(model: str, target: str) -> str:
     return target[ti:]
 
 
-class Visitor(vis.Visitor):
+@visitor
+class CppVisitor:
     def __init__(
         self, *, inpath: str, outpath: str, header: str, module: str, namespace: str
     ) -> None:
-        super().__init__()
-
-        self._path = inpath
         self._header = header
         self._module = module
         self._enum = set()

@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+import sys
 
 from tree_sitter import Node
 
@@ -14,6 +15,10 @@ class Visitor(metaclass=ABCMeta):
         # ignore typedef/#defines that are used for bitflags
         # so we have to do it manually
         self._parsing_bitflag = False
+
+    def __del__(self) -> None:
+        # empty for now
+        pass
 
     def visit(self, rules: _Rules):
         if "function" in rules:
@@ -64,7 +69,7 @@ class Visitor(metaclass=ABCMeta):
 
         function - the entire function node (docs + declaration)
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_enum(self, rules: _Rules):
@@ -79,7 +84,7 @@ class Visitor(metaclass=ABCMeta):
 
         enum - the entire enum declaration
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_opaque(self, rules: _Rules):
@@ -92,7 +97,7 @@ class Visitor(metaclass=ABCMeta):
 
         opaque - the entire opaque type declaration
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_struct(self, rules: _Rules):
@@ -107,7 +112,7 @@ class Visitor(metaclass=ABCMeta):
 
         struct - the entire struct declaration
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_union(self, rules: _Rules):
@@ -122,7 +127,7 @@ class Visitor(metaclass=ABCMeta):
 
         union - the entire union declaration
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_bitflag(self, rules: _Rules):
@@ -142,7 +147,7 @@ class Visitor(metaclass=ABCMeta):
 
         flag.value - array of all the flag values
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_alias(self, rules: _Rules):
@@ -157,7 +162,7 @@ class Visitor(metaclass=ABCMeta):
 
         alias - the entire alias declaration
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_callback(self, rules: _Rules):
@@ -176,7 +181,7 @@ class Visitor(metaclass=ABCMeta):
 
         callback - the entire callback declaration
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_fn_macro(self, rules: _Rules):
@@ -193,7 +198,7 @@ class Visitor(metaclass=ABCMeta):
 
         fn_macro - the entire macro declaration
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_const(self, rules: _Rules):
@@ -208,4 +213,35 @@ class Visitor(metaclass=ABCMeta):
 
         const - the entire constant declaration
         """
-        pass
+        raise NotImplementedError()
+
+
+def visitor(cls):
+    has_init = cls.__dict__.__contains__("__init__")
+    has_del = cls.__dict__.__contains__("__del__")
+
+    mod = cls.__module__
+    cls = type("Visitor", (Visitor,), dict(cls.__dict__))  # add base
+
+    if has_init:
+        # these are done by default if no __init__ is specified
+        old_init = cls.__init__
+
+        def __init__(self, *args, **kwargs):
+            super(cls, self).__init__()
+            old_init(self, *args, **kwargs)
+
+        cls.__init__ = __init__
+
+    if has_del:
+        old_del = cls.__del__
+
+        def __del__(self):
+            old_del(self)
+            super(cls, self).__del__()
+
+        cls.__del__ = __del__
+
+    sys.modules[mod].__dict__["Visitor"] = cls  # add to module
+
+    return cls

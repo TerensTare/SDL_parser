@@ -5,6 +5,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# custom files
+TODO.md
+
 # C extensions
 *.so
 
