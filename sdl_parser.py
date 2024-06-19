@@ -113,14 +113,27 @@ async def parse_extension(ext: str, og_vis, query):
 
     root = tree.root_node
 
-    vis = og_vis.another_one(
-        is_ext=True,
-        out=, # path to save generated C# code
-        # out=f"out/cs/SDL_{ext}.g.cs",
-        dll=, # path to the corresponding DLL
-        # dll=f"SDL_{ext}.dll",
-        clazz=f"SDL_{ext}",
+    vis = visitor(
+        inpath=, # path to extension header
+        # inpath=f"include/SDL3_{ext}/SDL_{ext}.h",
+        outpath=, # path to save generated code
+        # outpath=f"out/cpp/SDL_{ext}.g.cppm",
+        header=, # header include
+        # header=f"SDL3/SDL_{ext}.h",
+        module=, # generated module name
+        # module=f"sdl.{ext}",
+        namespace=, # namespace for generated code
+        # namespace=f"sdl_{ext}",
     )
+
+    # vis = og_vis.another_one(
+    #     is_ext=True,
+    #     # out=, # path to save generated C# code
+    #     out=f"out/cs/SDL_{ext}.g.cs",
+    #     # dll=, # path to the corresponding DLL
+    #     dll=f"SDL_{ext}.dll",
+    #     clazz=f"SDL_{ext}",
+    # )
 
     for i, rules in query.matches(root):
         vis.visit(rules)
@@ -142,12 +155,25 @@ async def main():
     root = tree.root_node
 
     vis = visitor(
-        is_ext=False,
-        out=, # path to save generated C# code
-        # out="out/cs/SDL.g.cs",
-        dll="SDL3.dll",
-        clazz="SDL",
+        inpath=, # path to SDL.h
+        # inpath="include/SDL3/SDL.h",
+        outpath=, # path to save generated code
+        # outpath="out/cpp/SDL.g.cppm",
+        header=, # header include
+        # header="SDL3/SDL.h",
+        module=, # generated module name
+        # module="sdl",
+        namespace=, # namespace for generated code
+        # namespace="sdl",
     )
+
+    # vis = visitor(
+    #     is_ext=False,
+    #     # out=, # path to save generated code
+    #     out="out/cs/SDL.g.cs",
+    #     dll="SDL3.dll",
+    #     clazz="SDL",
+    # )
 
     for i, rules in query.matches(root):
         vis.visit(rules)
@@ -158,7 +184,7 @@ async def main():
         *[parse_extension(ext, vis, query) for ext in exts],
     )
 
-    shutil.copyfile("gen/cs/String.cs", "out/cs/String.cs")
+    # shutil.copyfile("gen/cs/String.cs", "out/cs/String.cs")
 
 
 start = time.time()
