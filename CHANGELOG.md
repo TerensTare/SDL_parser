@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Units that are not included by `SDL.h` by default (`SDL_main.h` and `SDL_vulkan.h`).
 - Json generator in case you want to generate bindings from that (thank you @playmer for the idea).
 
 ### Changed

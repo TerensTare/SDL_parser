@@ -8,8 +8,13 @@ import json
 
 
 def _split_type_name(node: Node) -> tuple[bytes, bytes]:
-    ty = node.child_by_field_name("type").text
+    ty = node.child_by_field_name("type")
     decl = node.child_by_field_name("declarator")
+
+    if ty.type == "struct_specifier":
+        ty = ty.child_by_field_name("name")
+
+    ty = ty.text
 
     if decl is None:
         return ty, b""
@@ -26,6 +31,10 @@ def _split_type_name(node: Node) -> tuple[bytes, bytes]:
                 ty += b"*"
 
             case "function_declarator":
+                decl = decl.child_by_field_name("declarator")
+
+            case "array_declarator":
+                ty += b"[" + decl.child_by_field_name("size").text + b"]"
                 decl = decl.child_by_field_name("declarator")
 
             case _:
@@ -54,7 +63,9 @@ class JsonVisitor:
         pass
 
     def __del__(self) -> None:
-        with open(f"out/json/{self._unit}.g.json", "w") as f:
+        name = "SDL" if self._unit == "SDL" else f"SDL_{self._unit}"
+
+        with open(f"out/json/{name}.g.json", "w") as f:
             json.dump(self._data, f, indent=4)
 
     def visit_function(self, rules: dict[str, Node | list[Node]]):

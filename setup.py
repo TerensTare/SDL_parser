@@ -10,6 +10,8 @@ SDL_ROOT = "./include"
 # Uncomment and change as needed.
 PATH_BY_UNIT = {
     # "SDL": "SDL3/SDL.h",
+    # "SDL_main": "SDL3/SDL_main.h",
+    # "SDL_vulkan": "SDL3/SDL_vulkan.h",
     # "SDL_image": "SDL3_image/SDL_image.h",
     # "SDL_mixer": "SDL3_mixer/SDL_mixer.h",
     # "SDL_ttf": "SDL3_ttf/SDL_ttf.h",

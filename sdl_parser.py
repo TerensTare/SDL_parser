@@ -145,7 +145,9 @@ def main():
         vis.visit(rules)
 
     for ext in PATH_BY_UNIT.keys():
-        parse_extension(ext, query)
+        if ext == "SDL":
+            continue
+        parse_extension(ext[4:], query)
 
     # copy any file from the gen folder to the out folder
     if os.path.exists(f"gen/{gen}/"):
