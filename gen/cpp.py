@@ -1,6 +1,7 @@
 from tree_sitter import Node
 
 
+from setup import PATH_BY_UNIT
 from visitor import visitor
 
 _PRELUDE: str = """
@@ -54,10 +55,6 @@ export module {1};
 export namespace {2}
 {{"""
 
-_POSTLUDE: str = """
-}
-"""
-
 
 def _only(ty: str, node: Node):
     return filter(lambda x: x.type == ty, node.children)
@@ -96,17 +93,35 @@ def _cut_similarity(model: str, target: str) -> str:
 @visitor
 class CppVisitor:
     def __init__(
-        self, *, inpath: str, outpath: str, header: str, module: str, namespace: str
+        self,
+        unit: str,
+        *,
+        module: str = "sdl.{ext}",
+        namespace: str = "sdl::{ext}",
     ) -> None:
-        self._header = header
-        self._module = module
+        """
+        Generate a C++ module from the parsed SDL header file.
+
+        Args:
+            unit (str): The SDL unit to generate the module for.
+            module (str, optional): The module name to use. Defaults to "sdl.{ext}".
+            namespace (str, optional): The namespace to use. Defaults to "sdl::{ext}".
+        """
+
         self._enum = set()
 
-        self._file = open(outpath, "w")
-        self._file.write(_PRELUDE.format(header, module, namespace))
+        mod = module.format(ext=unit)
+        ns = namespace.format(ext=unit)
+
+        if unit != "SDL":
+            unit = f"SDL_{unit}"
+
+        header = PATH_BY_UNIT[unit].split("/")[-1][:-2]  # remove ".h"
+        self._file = open(f"out/cpp/{header}.g.cppm", "w")
+        self._file.write(_PRELUDE.format(PATH_BY_UNIT[unit], mod, ns))
 
     def __del__(self) -> None:
-        self._file.write(_POSTLUDE)
+        self._file.write("}\n")
         self._file.close()
 
     def visit_function(self, rules: dict[str, Node | list[Node]]):
@@ -213,7 +228,7 @@ class CppVisitor:
 
             self._file.write(f"        {clean_name} = {entry_name.text.decode()},\n")
 
-        self._file.write(f"    }};\nREGULAR_ENUM({name.text[4:].decode()});\n")
+        self._file.write(f"    }};\n    REGULAR_ENUM({name.text[4:].decode()});\n")
 
         self._enum.add(name.text[4:].decode())
 

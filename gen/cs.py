@@ -183,20 +183,24 @@ _const_map = dict()
 
 @visitor
 class CsVisitor:
-    def __init__(self, *, out: str, dll: str, clazz: str, imp: str) -> None:
-        super().__init__()
+    def __init__(self, unit: str) -> None:
+        if unit != "SDL":
+            unit = f"SDL_{unit}"
+            dll = f"{unit}.dll"
+            imp = "using static SDL3.SDL;"
+        else:
+            dll = "SDL3.dll"
+            imp = ""
 
-        self._file = open(out, "w")
-
-        prelude = _PRELUDE
-        self._file.write(prelude.format(clazz, dll, imp))
+        self._file = open(f"out/cs/{unit}.g.cs", "w")
+        self._file.write(_PRELUDE.format(unit, dll, imp))
 
         self._sdl_opaques = _sdl_opaques
         self._callbacks = _callbacks
         self._fn_macros = _fn_macros
         self._const_map = _const_map
 
-        self._out = out
+        self._out = f"out/cs/{unit}.g.cs"
 
     def __del__(self) -> None:
         self._file.write("    }\n}\n")

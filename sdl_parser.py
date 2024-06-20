@@ -1,4 +1,3 @@
-import asyncio
 import importlib
 import inspect
 import os
@@ -6,18 +5,20 @@ import shutil
 import sys
 import time
 
-import aiofiles
 from pcpp.pcmd import CmdPreprocessor
 
 
+from setup import PATH_BY_UNIT, SDL_ROOT
 import utils
 
 
-if len(sys.argv) != 2:
-    print("Usage: python sdl_parser.py <path-to-bindgen-module>")
+if len(sys.argv) < 2:
+    print("Usage: python sdl_parser.py <path-to-bind-gen-module> <gen-args>...")
     sys.exit(1)
 
 mod = importlib.import_module(sys.argv[1])
+gen = mod.__name__[mod.__name__.find(".") + 1 :]
+
 _vis = [mem for mem in inspect.getmembers(mod) if mem[0] == "Visitor"]
 if not _vis:
     print("Module does not contain a Visitor class")
@@ -26,7 +27,9 @@ else:
     visitor = getattr(mod, _vis[0][0])
 
 
-async def parse_file(*args, input: str, output: str):
+def parse_file(*args, input: str, output: str):
+    os.makedirs(os.path.dirname(output), exist_ok=True)
+
     _ = CmdPreprocessor(
         argv=[
             "<dummy-arg-doesnt-matter>",
@@ -94,112 +97,63 @@ async def parse_file(*args, input: str, output: str):
         ]
     )
 
-    async with aiofiles.open(output, "r") as f:
-        infile = await f.read()
+    with open(output, "r") as f:
+        infile = f.read()
 
     parser = utils.parser()
     tree = parser.parse(infile.encode())
     return tree
 
 
-async def parse_query(file: str):
-    async with aiofiles.open(file, "r") as f:
-        query_txt = await f.read()
+def parse_query(file: str):
+    with open(file, "r") as f:
+        query_txt = f.read()
 
     query = utils.query(query_txt)
     return query
 
 
-async def parse_extension(ext: str, query):
-    tree = await parse_file(
-        input=, # path to extension header
-        # input=f"include/SDL3_{ext}/SDL_{ext}.h",
-        output=, # path where to save preprocessed file
-        # output=f"out/cs/pp/SDL_{ext}.i",
+def parse_extension(ext: str, query):
+    sdl_ext = f"SDL_{ext}"
+    tree = parse_file(
+        input=f"{SDL_ROOT}/{PATH_BY_UNIT[sdl_ext]}",
+        output=f"out/{gen}/pp/{sdl_ext}.i",
     )
 
     root = tree.root_node
 
-    # vis = visitor(
-    #     # inpath=, # path to extension header
-    #     inpath=f"include/SDL3_{ext}/SDL_{ext}.h",
-    #     # outpath=, # path to save generated code
-    #     outpath=f"out/cpp/SDL_{ext}.g.cppm",
-    #     # header=, # header include
-    #     header=f"SDL3/SDL_{ext}.h",
-    #     # module=, # generated module name
-    #     module=f"sdl.{ext}",
-    #     # namespace=, # namespace for generated code
-    #     namespace=f"sdl_{ext}",
-    # )
-
-    vis = visitor(
-        out=, # path to save generated C# code
-        # out=f"out/cs/SDL_{ext}.g.cs",
-        dll=f"SDL_{ext}.dll", # WARNING: don't touch
-        clazz=, # class name
-        # clazz=f"SDL_{ext}",
-        imp="using static SDL3.SDL;", # WARNING: don't touch
-    )
+    vis = visitor(ext)
 
     for i, rules in query.matches(root):
         vis.visit(rules)
 
 
-async def main():
-    tree, query = await asyncio.gather(
-        parse_file(
-            "-I",
-            "include",
-            input=, # path to SDL.h
-            # input="include/SDL3/SDL.h",
-            output=, # path to save preprocessed file
-            # output="out/cs/pp/SDL.i",
-        ),
-        parse_query("query.scm"),
-    )
+def main():
+    query = parse_query("query.scm")
 
+    tree = parse_file(
+        "-I",
+        SDL_ROOT,
+        input=f"{SDL_ROOT}/{PATH_BY_UNIT['SDL']}",
+        output=f"out/{gen}/pp/SDL.i",
+    )
     root = tree.root_node
 
-    # vis = visitor(
-    #     # inpath=, # path to SDL.h
-    #     inpath="include/SDL3/SDL.h",
-    #     # outpath=, # path to save generated code
-    #     outpath="out/cpp/SDL.g.cppm",
-    #     # header=, # header include
-    #     header="SDL3/SDL.h",
-    #     # module=, # generated module name
-    #     module="sdl",
-    #     # namespace=, # namespace for generated code
-    #     namespace="sdl",
-    # )
-
-    vis = visitor(
-        out=, # path to save generated code
-        # out="out/cs/SDL.g.cs",
-        dll="SDL3.dll", # WARNING: don't touch
-        # clazz="SDL",
-        clazz=, # class name
-        imp="", # WARNING: don't touch
-    )
+    vis = visitor("SDL")
 
     for i, rules in query.matches(root):
         vis.visit(rules)
 
-    exts = # what extensions to parse
-    # exts = ["image", "mixer", "ttf"]
-    for ext in exts:
-        await parse_extension(ext, query)
+    for ext in PATH_BY_UNIT.keys():
+        parse_extension(ext, query)
 
     # copy any file from the gen folder to the out folder
-    gen = mod.__name__[mod.__name__.find(".") + 1 :]
     if os.path.exists(f"gen/{gen}/"):
         for file in os.listdir(f"gen/{gen}/"):
             shutil.copy(f"gen/{gen}/{file}", f"out/{gen}/{file}")
 
 
-start = time.time()
-
-asyncio.run(main())
-
-print(f"Elapsed: {time.time() - start:.2f}s")
+if __name__ == "__main__":  # At this point, this is just for readability
+    start = time.time()
+    main()
+    print(f"Elapsed: {time.time() - start:.2f}s")

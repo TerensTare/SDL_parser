@@ -1,4 +1,6 @@
 from abc import ABCMeta, abstractmethod
+from getopt import getopt
+import inspect
 import sys
 
 from tree_sitter import Node
@@ -10,7 +12,9 @@ _BITFLAG_FILTER = {"preproc_def", "preproc_function_def"}
 
 
 class Visitor(metaclass=ABCMeta):
-    def __init__(self) -> None:
+    def __init__(self, unit: str) -> None:
+        # The `unit` parameter is there just to tell you that's all you have
+
         # There is no query that can tell tree sitter to
         # ignore typedef/#defines that are used for bitflags
         # so we have to do it manually
@@ -227,9 +231,28 @@ def visitor(cls):
         # these are done by default if no __init__ is specified
         old_init = cls.__init__
 
-        def __init__(self, *args, **kwargs):
-            super(cls, self).__init__()
-            old_init(self, *args, **kwargs)
+        def __init__(self, *args):
+            super(cls, self).__init__(*args)
+
+            all_args = inspect.getfullargspec(old_init)
+
+            flag_names = set(all_args.kwonlyargs)
+            defaults = all_args.kwonlydefaults or {}
+
+            flags, _ = getopt(
+                sys.argv[2:],
+                shortopts="",
+                longopts=[f"{flag}=" for flag in flag_names],
+            )
+
+            flags = {k[2:]: v for k, v in flags}
+
+            for flag in flag_names:
+                if flag not in flags and flag not in defaults:
+                    print(f"Error: missing flag `{flag}`")
+                    sys.exit(1)
+
+            old_init(self, *args, **flags)
 
         cls.__init__ = __init__
 
