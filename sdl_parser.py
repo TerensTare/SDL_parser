@@ -11,10 +11,67 @@ from pcpp.pcmd import CmdPreprocessor
 from setup import PATH_BY_UNIT, SDL_ROOT
 import utils
 
+_FILE_STR: str = """
+from tree_sitter import Node
+from visitor import visitor
 
-if len(sys.argv) < 2:
+
+@visitor
+class {0}Visitor:
+    def __init__(
+        self,
+        unit: str,
+    ):
+        pass
+
+    def visit_function(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_enum(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_opaque(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_struct(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_union(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_bitflag(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_alias(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_callback(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_fn_macro(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+
+    def visit_const(self, rules: dict[str, Node | list[Node]]):
+        raise NotImplementedError
+"""
+
+
+if len(sys.argv) < 2 or sys.argv[1] == "--help":
     print("Usage: python sdl_parser.py <path-to-bind-gen-module> <gen-args>...")
     sys.exit(1)
+elif sys.argv[1] == "--new":
+    if len(sys.argv) < 3:
+        print("Usage: python sdl_parser.py --new <module-name>")
+        sys.exit(1)
+
+    if os.path.exists(f"gen/{sys.argv[2]}.py"):
+        print("Module already exists")
+        sys.exit(1)
+
+    with open(f"gen/{sys.argv[2]}.py", "w") as f:
+        f.write(_FILE_STR.format(sys.argv[2].capitalize()))
+
+    sys.exit(0)
 
 mod = importlib.import_module(sys.argv[1])
 gen = mod.__name__[mod.__name__.find(".") + 1 :]
@@ -37,6 +94,8 @@ def parse_file(*args, input: str, output: str):
             "-o",
             output,
             *args,
+            "-D",
+            "SDL_MAIN_USE_CALLBACKS",  # test
             "-D",
             "SDLCALL=",  # tree-sitter has a hard time parsing __cdecl
             "-D",

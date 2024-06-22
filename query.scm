@@ -38,7 +38,7 @@
 ) @callback
 
 (type_definition
-	type: (_) @callback.return
+    type: (_) @callback.return
     declarator: (pointer_declarator
         declarator: (function_declarator
             declarator: (parenthesized_declarator

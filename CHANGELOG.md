@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## 2024-06-22
+
+### Added
+
+- New command to ease generator creation. Run `py sdl_parser.py --new <name>` and check `gen/<name>.py`.
+- Utilities to help writing your own generators. Check out `only` and `split_type_name` from [utils.py](./utils.py).
+- Updated guides to reflect current changes.
+
+
 ## 2024-06-20
 
 ### Added

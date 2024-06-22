@@ -3,6 +3,7 @@ from tree_sitter import Node
 
 from setup import PATH_BY_UNIT
 from visitor import visitor
+from utils import only
 
 _PRELUDE: str = """
 module;
@@ -54,10 +55,6 @@ export module {1};
 
 export namespace {2}
 {{"""
-
-
-def _only(ty: str, node: Node):
-    return filter(lambda x: x.type == ty, node.children)
 
 
 def _cut_similarity(model: str, target: str) -> str:
@@ -131,7 +128,7 @@ class CppVisitor:
 
         if "function.return_ptr" in rules:
             ret += "*"
-        if any(_only("type_qualifier", rules["function.decl"])):
+        if any(only("type_qualifier", rules["function.decl"])):
             ret = "const " + ret
 
         body_ret = "" if ret == "void" else "return "
@@ -175,6 +172,9 @@ class CppVisitor:
                         decl = decl.named_children[0]
                         decl = decl.child_by_field_name("declarator")
 
+                    case "array_declarator":
+                        decl = decl.child_by_field_name("declarator")
+
                     case _:
                         break
 
@@ -195,7 +195,7 @@ class CppVisitor:
                 return f"(SDL_{ty})({name})"
             return name
 
-        ps = list(_only("parameter_declaration", params))
+        ps = list(only("parameter_declaration", params))
         ps_types = [extract_type(p) for p in ps]
         ps_name = [extract_name(p) for p in ps]
 
@@ -219,7 +219,7 @@ class CppVisitor:
     {{
 """)
 
-        for entry in _only("enumerator", entries):
+        for entry in only("enumerator", entries):
             entry_name = entry.child_by_field_name("name")
             clean_name = _cut_similarity(
                 name.text[4:].decode(),

@@ -1,58 +1,20 @@
 from tree_sitter import Node
-from visitor import visitor
 
 import json
+
+from visitor import visitor
+from utils import only, split_type_name
 
 # TODO:
 # strip `struct` from members
 
 
-def _split_type_name(node: Node) -> tuple[bytes, bytes]:
-    ty = node.child_by_field_name("type")
-    decl = node.child_by_field_name("declarator")
-
-    if ty.type == "struct_specifier":
-        ty = ty.child_by_field_name("name")
-
-    ty = ty.text
-
-    if decl is None:
-        return ty, b""
-
-    for n in node.children:
-        if n.type == "type_qualifier":
-            ty = n.text + b" " + ty
-            break  # logically there should be only one type_qualifier
-
-    while not decl.type == "identifier":
-        match decl.type:
-            case "pointer_declarator":
-                decl = decl.child_by_field_name("declarator")
-                ty += b"*"
-
-            case "function_declarator":
-                decl = decl.child_by_field_name("declarator")
-
-            case "array_declarator":
-                ty += b"[" + decl.child_by_field_name("size").text + b"]"
-                decl = decl.child_by_field_name("declarator")
-
-            case _:
-                break
-
-    return ty.decode(), decl.text.decode()
-
-
-def _name_value(entry: Node):
+def _name_value(entry: Node) -> tuple[str, str]:
     name = entry.child_by_field_name("name").text.decode()
     if (val := entry.child_by_field_name("value")) is not None:
         return name, val.text.decode()
     else:
         return name, "<default>"
-
-
-def _only(ty: str, node: Node):
-    return filter(lambda n: n.type == ty, node.named_children)
 
 
 @visitor
@@ -69,13 +31,13 @@ class JsonVisitor:
             json.dump(self._data, f, indent=4)
 
     def visit_function(self, rules: dict[str, Node | list[Node]]):
-        ty, name = _split_type_name(rules["function.decl"])
+        ty, name = split_type_name(rules["function.decl"])
 
         self._data[name] = {
             "type": "function",
             "return": ty,
             "params": [
-                _split_type_name(param)
+                split_type_name(param)
                 for param in rules["function.params"].named_children
                 if param.child_by_field_name("declarator") is not None
             ],
@@ -88,7 +50,7 @@ class JsonVisitor:
             "type": "enum",
             "members": dict(
                 _name_value(entry)
-                for entry in _only("enumerator", rules["enum.entries"])
+                for entry in only("enumerator", rules["enum.entries"])
             ),
         }
 
@@ -105,7 +67,7 @@ class JsonVisitor:
         self._data[name] = {
             "type": "struct",
             "members": [
-                _split_type_name(member)
+                split_type_name(member)
                 for member in rules["struct.members"].named_children
                 if member.child_by_field_name("declarator") is not None
             ],
@@ -117,7 +79,7 @@ class JsonVisitor:
         self._data[name] = {
             "type": "union",
             "members": [
-                _split_type_name(member)
+                split_type_name(member)
                 for member in rules["union.members"].named_children
                 if member.child_by_field_name("declarator") is not None
             ],
@@ -135,7 +97,7 @@ class JsonVisitor:
         }
 
     def visit_alias(self, rules: dict[str, Node | list[Node]]):
-        ty, name = _split_type_name(rules["alias"])
+        ty, name = split_type_name(rules["alias"])
 
         self._data[name] = {
             "type": "alias",
@@ -143,14 +105,14 @@ class JsonVisitor:
         }
 
     def visit_callback(self, rules: dict[str, Node | list[Node]]):
-        ty, _ = _split_type_name(rules["callback"])
+        ty, _ = split_type_name(rules["callback"])
         name = rules["callback.name"].text.decode()
 
         self._data[name] = {
             "type": "callback",
             "return": ty,
             "params": [
-                _split_type_name(param)
+                split_type_name(param)
                 for param in rules["callback.params"].named_children
                 if param.child_by_field_name("declarator") is not None
             ],
