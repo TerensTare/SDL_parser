@@ -51,12 +51,12 @@ public class Example
             byte b = (byte)(color & 0xFF);
 
 
-            SDL_SetRenderDrawColor(renderer, r, g, b, 0xFF);
+            SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
             SDL_RenderClear(renderer);
 
-            SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+            SDL_SetRenderDrawColor(renderer, r, g, b, 0xFF);
 
-            var area = new SDL_FRect() { x = 160, y = 160, w = 480, h = 320 };
+            var area = new SDL_FRect() { x = 160, y = 160, w = 320, h = 160 };
             SDL_RenderFillRect(renderer, ref area);
 
             SDL_RenderPresent(renderer);

@@ -211,6 +211,7 @@ def main():
     # copy any file from the gen folder to the out folder
     if os.path.exists(f"gen/{gen}/"):
         for file in os.listdir(f"gen/{gen}/"):
+            os.remove(f"out/{gen}/{file}")
             shutil.copy(f"gen/{gen}/{file}", f"out/{gen}/{file}")
 
 

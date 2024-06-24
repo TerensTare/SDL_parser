@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Support for providing parameter documentation and return documentation in the JSON generator. Find it on the 'docs' field.
 
+### Fixed
+
+- Files on `gen/<your-gen>` are now always copied even if they exist in the destination.
+
 ### Changed
 
 - Structure of function parameters in data generated as JSON. The new structure is as following:
