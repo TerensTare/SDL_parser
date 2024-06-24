@@ -580,9 +580,11 @@ class CsVisitor:
         is_str = False
         is_void = False
 
+        f = 0
+
         n = 0
         while (n := docs.find("\\param", n)) != -1:
-            f = docs.find("\n", n)
+            f = docs.find("\\", n + 1)
             if f == -1:
                 f = len(docs)
 
@@ -652,6 +654,9 @@ class CsVisitor:
             ty = ty[:-1].strip()
 
             if not is_void and ref != OUT:
+                ty += "[]"
+
+            elif docs.find("array", n, f) != -1:
                 ty += "[]"
 
             if ref != OUT:

@@ -17,6 +17,76 @@ def _name_value(entry: Node) -> tuple[str, str]:
         return name, "<default>"
 
 
+def _parse_doc(docs: str, data: tuple[str, str]) -> dict[str, str]:
+    ty, name = data
+
+    n = 0
+    while (n := docs.find("\\param", n)) != -1:
+        f = docs.find("\\", n + 1)
+        if f == -1:
+            f = len(docs)
+
+        brace_e = docs.find("]", n, f)
+        brace_e = max(brace_e, n + len("\\param")) + 1
+
+        if (
+            not docs[brace_e:].strip().startswith(name)
+            or docs[brace_e:].strip()[len(name)] != " "
+        ):
+            n = f
+            continue
+
+        brace_s = docs.find("[", n, brace_e)
+
+        if brace_s == -1:
+            space = docs.find(".", n + len("\\param") + 1, f)
+
+            return {
+                "type": ty,
+                "name": name,
+                # The token is '\n * ' because of the way the docs are formatted
+                "docs": docs[space + 1 : f - 4].strip(),
+            }
+
+        # if docs.find("inout", brace_s + 1, brace_e) != -1:
+        #     ref = REF
+        #     pass
+        # elif docs.find("out", brace_s + 1, brace_e) != -1:
+        #     ref = OUT
+        # elif docs.find("in", brace_s + 1, brace_e) != -1:
+        #     if ty not in self._callbacks:
+        #         ref = REF
+
+        # opt = docs.find("opt", brace_s + 1, brace_e) != -1
+        # own = docs.find("own", brace_s + 1, brace_e) != -1
+
+        space = docs.find(" ", brace_e + 1, f)
+
+        return {
+            "type": ty,
+            "name": name,
+            # The token is '\n * ' because of the way the docs are formatted
+            "docs": docs[space + 1 : f - 4].strip(),
+        }
+
+
+def _parse_return_docs(docs: str) -> str | None:
+    n = docs.find("\\returns")
+    if n == -1:
+        return None
+
+    f = docs.find("\n", n + 1)
+    if f == -1:
+        f = len(docs)
+
+    b = docs.find("[", n, f)
+    if b == -1:
+        return docs[n + len("\\returns") + 1 : f].strip()
+
+    e = docs.find("]", b, f)
+    return docs[e + 1 : f].strip()
+
+
 @visitor
 class JsonVisitor:
     def __init__(self, unit: str) -> None:
@@ -32,12 +102,14 @@ class JsonVisitor:
 
     def visit_function(self, rules: dict[str, Node | list[Node]]):
         ty, name = split_type_name(rules["function.decl"])
+        docs = rules["function.docs"].text.decode()
 
         self._data[name] = {
             "type": "function",
             "return": ty,
+            "docs": _parse_return_docs(docs) or "",
             "params": [
-                split_type_name(param)
+                _parse_doc(docs, split_type_name(param))
                 for param in rules["function.params"].named_children
                 if param.child_by_field_name("declarator") is not None
             ],

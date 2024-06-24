@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## 2024-06-24
+
+### Added
+
+- Support for providing parameter documentation and return documentation in the JSON generator. Find it on the 'docs' field.
+
+### Changed
+
+- Structure of function parameters in data generated as JSON. The new structure is as following:
+```json
+{
+    "type" : <type>,
+    "name": <name>,
+    "docs": <docs>
+}
+````
+
+
+
 ## 2024-06-22
 
 ### Added
