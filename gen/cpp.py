@@ -108,7 +108,7 @@ class CppVisitor:
         self._enum = set()
 
         mod = module.format(ext=unit)
-        ns = namespace.format(ext=unit)
+        ns = "sdl" if unit == "SDL" else namespace.format(ext=unit)
 
         if unit != "SDL":
             unit = f"SDL_{unit}"
@@ -146,7 +146,7 @@ class CppVisitor:
             if node.named_children[0].type == "type_qualifier":
                 ty = node.named_children[0].text.decode() + " " + ty
 
-            while decl.type == "pointer_declarator":
+            while decl is not None and decl.type == "pointer_declarator":
                 decl = decl.child_by_field_name("declarator")
                 ty += "*"
 
@@ -196,8 +196,14 @@ class CppVisitor:
             return name
 
         ps = list(only("parameter_declaration", params))
+
         ps_types = [extract_type(p) for p in ps]
         ps_name = [extract_name(p) for p in ps]
+
+        for i, n in enumerate(ps_name):
+            if n == "" and ps_types[i] != "void":
+                print(f"Note: Skipping {name.text.decode()} due to unnamed parameter")
+                return
 
         self._file.write(f"""
     {ret} {name.text[4:].decode()}(""")
@@ -237,9 +243,9 @@ class CppVisitor:
     def visit_opaque(self, rules: dict[str, Node | list[Node]]):
         name = rules["opaque.name"]
 
-        self._file.write(
-            f"\n    using {name.text[4:].decode()} = {name.text.decode()};\n"
-        )
+        al = name.text[4:].decode() if name.text[4:] == b"_" else name.text.decode()
+
+        self._file.write(f"\n    using {al} = {name.text.decode()};\n")
         pass
 
     def visit_struct(self, rules: dict[str, Node | list[Node]]):

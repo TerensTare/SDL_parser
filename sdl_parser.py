@@ -84,6 +84,30 @@ else:
     visitor = getattr(mod, _vis[0][0])
 
 
+def os_defines() -> list[str]:
+    match sys.platform:
+        case "aix":
+            return ["-D", "_AIX"]
+
+        case "android":
+            return ["-D", "__ANDROID__"]
+
+        case "cygwin":
+            return ["-D", "_WIN32", "-D", "__CYGWIN__"]
+
+        case "emscripten":
+            return ["-D", "__EMSCRIPTEN__"]
+
+        case "ios":
+            return ["-D", "__APPLE__", "-D", "__IOS__"]
+
+        case "linux":
+            return ["-D", "__linux__"]
+
+        case "win32":
+            return ["-D", "_WIN32"]
+
+
 def parse_file(*args, input: str, output: str):
     os.makedirs(os.path.dirname(output), exist_ok=True)
 
@@ -94,6 +118,7 @@ def parse_file(*args, input: str, output: str):
             "-o",
             output,
             *args,
+            *os_defines(),
             "-D",
             "SDL_MAIN_USE_CALLBACKS",  # test
             "-D",
@@ -211,7 +236,9 @@ def main():
     # copy any file from the gen folder to the out folder
     if os.path.exists(f"gen/{gen}/"):
         for file in os.listdir(f"gen/{gen}/"):
-            os.remove(f"out/{gen}/{file}")
+            if os.path.exists(f"out/{gen}/{file}"):
+                os.remove(f"out/{gen}/{file}")
+
             shutil.copy(f"gen/{gen}/{file}", f"out/{gen}/{file}")
 
 

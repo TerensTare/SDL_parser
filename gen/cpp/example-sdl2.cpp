@@ -3,10 +3,10 @@ import sdl.SDL;
 
 int main(int, char **)
 {
-    if (sdl::Init(sdl::InitFlags::VIDEO) != 0)
+    if (sdl::Init(sdl::INIT_EVERYTHING()) != 0)
     {
         sdl::ShowSimpleMessageBox(
-            sdl::MessageBoxFlags::ERROR,
+            (Uint32)sdl::MessageBoxFlags::ERROR,
             "Error",
             "Failed to initialize SDL",
             nullptr
@@ -16,14 +16,15 @@ int main(int, char **)
 
     auto window = sdl::CreateWindow(
         "Hello world!",
+        sdl::WINDOWPOS_CENTERED(), sdl::WINDOWPOS_CENTERED(),
         640, 480,
-        sdl::WindowFlags::OPENGL
+        (Uint32)sdl::WindowFlags::SHOWN
     );
 
     if (window == nullptr)
     {
         sdl::ShowSimpleMessageBox(
-            sdl::MessageBoxFlags::ERROR,
+            (Uint32)sdl::MessageBoxFlags::ERROR,
             "Error",
             "Failed to create window",
             nullptr
@@ -31,12 +32,12 @@ int main(int, char **)
         return 1;
     }
 
-    auto renderer = sdl::CreateRenderer(window, nullptr);
+    auto renderer = sdl::CreateRenderer(window, -1, (Uint32)sdl::RendererFlags::ACCELERATED);
 
     if (renderer == nullptr)
     {
         sdl::ShowSimpleMessageBox(
-            sdl::MessageBoxFlags::ERROR,
+            (Uint32)sdl::MessageBoxFlags::ERROR,
             "Error",
             "Failed to create renderer",
             nullptr
@@ -61,7 +62,7 @@ int main(int, char **)
         sdl::RenderClear(renderer);
 
         sdl::SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        sdl::RenderLine(renderer, 320, 240, 400, 300);
+        sdl::RenderDrawLine(renderer, 320, 240, 400, 300);
 
         sdl::RenderPresent(renderer);
 

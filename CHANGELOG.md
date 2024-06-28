@@ -6,6 +6,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## 2024-06-28
+
+### Added
+
+- Q&A section on the [README](./README.md).
+- [Example](./gen/cpp/example-sdl2.cpp) showing how to use the SDL2 C++ api.
+
+### Changed
+
+- The C++ generator will skip any functions with unnamed parameters. The only known case is `SDL_ReportAssertion` from SDL2.
+Please note that as the documentation also suggests, you should use the `SDL_assert_*` macros if you want SDL assertions, so it shouldn't be an issue.
+Also note that this behavior is not global to every generator, only to the C++ one.
+
+### Fixed
+
+- Bug where the script will crash if you add a new file to `gen/<your-gen>`. This happened as the script tried to delete its analogue from `out/<your-gen>`, which doesn't exist.
+- The script correctly detects the current platform used by the script.
+- The C++ generator now uses the correct namespace for the default module (it defaults to `sdl`, you cannot change it as of now).
+
+
 ## 2024-06-24
 
 ### Added

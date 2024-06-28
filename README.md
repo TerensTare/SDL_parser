@@ -26,5 +26,10 @@ This is a list of currently supported languages:
 If you want to write bindings for another language, please refer to [bindings-my-way](docs/bindings-my-way.md).
 
 
+## Q&A
 
-For any questions or issues, feel free to open an issue or PR. Thank you!
+Q: Can I use this to generate SDL2 bindings?
+A: Yes, but the bindings are not of the same quality as SDL3 bindings due to some coding conventions that are not present in SDL2 code. The difference is that you need to cast SDL2 enums to their underlying type when passing to functions. Also some bitflags are not recognized as enums, but rather constants. Please compare the examples on `gen/cpp` to notice the difference.
+
+
+For any other questions or issues, feel free to open an issue or PR. Thank you!
