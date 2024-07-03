@@ -116,7 +116,12 @@ def os_defines() -> list[str]:
             return ["-D", "__wasi__"]
 
         case "win32":
-            return ["-D", "_WIN32"]
+            return [
+                "-D",
+                "_WIN32",
+                "-D",
+                "_MSC_VER=1900",  # VS2015 should be enough
+            ]
 
 
 def parse_file(*args, input: str, output: str):
