@@ -1,7 +1,5 @@
 
 (
-    (comment) @function.docs
-    .
     (declaration
         (storage_class_specifier)
         type: (_) @function.return
@@ -13,8 +11,6 @@
 ) @function
 
 (
-    (comment) @function.docs
-    .
     (declaration
         (storage_class_specifier)
         type: (_) @function.return
@@ -112,3 +108,7 @@
 
 (preproc_def name: (_) @const.name value: (_) @const.value) @const
 
+[
+    (preproc_if condition: (_) @cond.text)
+    (preproc_ifdef name: (_) @cond.text)
+] @cond

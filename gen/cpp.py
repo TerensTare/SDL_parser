@@ -54,7 +54,8 @@ export module {1};
     }}
 
 export namespace {2}
-{{"""
+{{
+"""
 
 
 def _cut_similarity(model: str, target: str) -> str:
@@ -120,6 +121,14 @@ class CppVisitor:
     def __del__(self) -> None:
         self._file.write("}\n")
         self._file.close()
+
+    def start_platform_code(self, platforms: list[str]):
+        self._file.write(
+            f"#if {' || '.join(map(lambda p: f'defined({p})', platforms))}\n"
+        )
+
+    def end_platform_code(self):
+        self._file.write("#endif\n\n")
 
     def visit_function(self, rules: dict[str, Node | list[Node]]):
         name = rules["function.name"]
@@ -205,8 +214,7 @@ class CppVisitor:
                 print(f"Note: Skipping {name.text.decode()} due to unnamed parameter")
                 return
 
-        self._file.write(f"""
-    {ret} {name.text[4:].decode()}(""")
+        self._file.write(f"\n    {ret} {name.text[4:].decode()}(")
 
         self._file.write(", ".join(f"{ty} {nm}" for ty, nm in zip(ps_types, ps_name)))
 

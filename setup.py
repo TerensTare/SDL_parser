@@ -1,5 +1,3 @@
-import sys
-
 # NOTE: this is relative to `sdl_parser.py` if a relative path.
 SDL_ROOT = "./include"
 
@@ -9,7 +7,7 @@ SDL_ROOT = "./include"
 # All these paths should be reasonable defaults.
 # Uncomment and change as needed.
 PATH_BY_UNIT = {
-    "SDL": "SDL2/SDL.h",
+    # "SDL": "SDL2/SDL.h",
     # "SDL": "SDL3/SDL.h",
     # "SDL_main": "SDL3/SDL_main.h",
     # "SDL_vulkan": "SDL3/SDL_vulkan.h",
@@ -17,8 +15,3 @@ PATH_BY_UNIT = {
     # "SDL_mixer": "SDL3_mixer/SDL_mixer.h",
     # "SDL_ttf": "SDL3_ttf/SDL_ttf.h",
 }
-
-# NOTE: do not touch :)
-if not PATH_BY_UNIT:
-    print("Error: no units chosen to parse.")
-    sys.exit(1)

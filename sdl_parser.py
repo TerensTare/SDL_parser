@@ -11,6 +11,11 @@ from pcpp.pcmd import CmdPreprocessor
 from setup import PATH_BY_UNIT, SDL_ROOT
 import utils
 
+
+if not PATH_BY_UNIT:
+    print("Error: no units chosen to parse. Please edit PATH_BY_UNIT in setup.py.")
+    sys.exit(1)
+
 _FILE_STR: str = """
 from tree_sitter import Node
 from visitor import visitor
@@ -90,10 +95,13 @@ def os_defines() -> list[str]:
             return ["-D", "_AIX"]
 
         case "android":
-            return ["-D", "__ANDROID__"]
+            return ["-D", "__ANDROID__", "-D", "ANDROID"]
 
         case "cygwin":
             return ["-D", "_WIN32", "-D", "__CYGWIN__"]
+
+        case "darwin":
+            return ["-D", "__APPLE__", "-D", "__MACH__"]
 
         case "emscripten":
             return ["-D", "__EMSCRIPTEN__"]
@@ -103,6 +111,9 @@ def os_defines() -> list[str]:
 
         case "linux":
             return ["-D", "__linux__"]
+
+        case "wasi":
+            return ["-D", "__wasi__"]
 
         case "win32":
             return ["-D", "_WIN32"]
@@ -125,6 +136,28 @@ def parse_file(*args, input: str, output: str):
             "SDLCALL=",  # tree-sitter has a hard time parsing __cdecl
             "-D",
             "SDL_DECLSPEC=",  # save us some time and headaches
+            "-D",
+            "SDL_DEPRECATED=",  # save us some time and headaches
+            "-D",
+            "SDL_UNUSED=",  # save us some time and headaches
+            "-D",
+            "SDL_ASSERT_LEVEL=1",  # save us some time and headaches
+            "-D",
+            "SDL_NODISCARD=",  # save us some time and headaches
+            "-D",
+            "SDL_NORETURN=",  # save us some time and headaches
+            "-D",
+            "SDL_ANALYZER_NORETURN=",  # save us some time and headaches
+            "-D",
+            "SDL_MALLOC=",  # save us some time and headaches
+            "-D",
+            "SDL_ALLOC_SIZE=",  # save us some time and headaches
+            "-D",
+            "SDL_ALLOC_SIZE2=",  # save us some time and headaches
+            "-D",
+            "SDL_BYTEORDER=SDL_LIL_ENDIAN",  # save us some time and headaches
+            "-D",
+            "SDL_FLOATWORDORDER=SDL_LIL_ENDIAN",  # save us some time and headaches
             "-D",
             "SDL_SLOW_MEMCPY",  # save us some time and headaches
             "-D",
@@ -150,6 +183,8 @@ def parse_file(*args, input: str, output: str):
             "-D",
             "SDL_EndThreadFunction",
             "-D",
+            "SDL_platform_defines_h_",  # save us some time and headaches
+            "-D",
             "SDL_oldnames_h_",  # save us some time and headaches
             "-D",
             "SDL_stdinc_h_",  # save us some time and headaches
@@ -168,10 +203,9 @@ def parse_file(*args, input: str, output: str):
      (SDL_static_cast(Uint32, SDL_static_cast(Uint8, (D))) << 24))""",
             "-D",
             "SDL_static_cast(T, V)=((T)(V))",  # save us some time and headaches
-            "-N",
-            "WINAPI_FAMILY_WINRT",  # workaround
+            # skip this as we need them to detect platform-specific code
             "--passthru-defines",  # keep defines in output
-            # "--passthru-unknown-exprs",
+            "--passthru-unknown-exprs",  # NOTE: this keeps the ifdef/endif blocks
             "--passthru-unfound-includes",  # skip missing includes
             "--passthru-comments",  # keep comments in output
             "--output-encoding",

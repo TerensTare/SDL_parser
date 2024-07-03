@@ -220,6 +220,12 @@ class CsVisitor:
         with open(self._out, "w") as f:
             f.write(self._data)
 
+    def start_platform_code(self, platforms: list[str]):
+        self._file.write(f"#if {' || '.join(platforms)}\n")
+
+    def end_platform_code(self):
+        self._file.write("#endif\n\n")
+
     def visit_function(self, rules):
         name = rules["function.name"].text.decode()
         docs = rules["function.docs"]

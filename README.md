@@ -19,7 +19,7 @@ Also, before you can run the script, you need to edit `PATH_BY_UNIT` in [setup.p
 
 This is a list of currently supported languages:
 
-- C++ ([example](./gen/cpp/example.cpp))
+- C++ ([example](./gen/cpp/example.cpp)) (for SDL2 use [this](./gen/cpp/example-sdl2.cpp) instead)
 - C# ([example](./gen/cs/Example.cs)) (NOTE: headers must be annotated as in this [PR](https://github.com/libsdl-org/SDL/pull/9907))
 - JSON
 

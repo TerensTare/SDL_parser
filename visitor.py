@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from getopt import getopt
 import inspect
 import sys
+import re
 
 from tree_sitter import Node
 
@@ -9,6 +10,8 @@ _Rules = dict[str, Node | list[Node]]
 
 
 _BITFLAG_FILTER = {"preproc_def", "preproc_function_def"}
+
+_PLATFORM_REGEX = re.compile(r"\bSDL_PLATFORM_\w+\b")
 
 
 class Visitor(metaclass=ABCMeta):
@@ -19,38 +22,115 @@ class Visitor(metaclass=ABCMeta):
         # ignore typedef/#defines that are used for bitflags
         # so we have to do it manually
         self._parsing_bitflag = False
+        self._platforms = []
+        self._platform_node_id = None
 
     def __del__(self) -> None:
         # empty for now
         pass
 
     def visit(self, rules: _Rules):
+        # TODO: check if this is the child of the `cond` node, if the node is not `None`
+        # when not the child, then the `cond` node becomes None
+
+        def _platform_setup(rule: str):
+            cursor = rules[rule]
+
+            if self._platform_node_id:
+                while (
+                    cursor.parent
+                    and cursor.parent.parent
+                    and cursor.parent.parent.type != "translation_unit"
+                ):
+                    cursor = cursor.parent
+
+                if cursor.id != self._platform_node_id:
+                    self._platform_node_id = None
+
+            if self._platform_node_id:
+                self.start_platform_code(self._platforms)
+
         if "function" in rules:
+            _platform_setup("function")
             self.visit_function(rules)
         elif "bitflag" in rules:
+            _platform_setup("bitflag")
             self.visit_bitflag(rules)
             self._parsing_bitflag = False
         elif "enum" in rules:
+            _platform_setup("enum")
             self.visit_enum(rules)
         elif "opaque" in rules:
+            _platform_setup("opaque")
             self.visit_opaque(rules)
         elif "struct" in rules:
+            _platform_setup("struct")
             self.visit_struct(rules)
         elif "union" in rules:
+            _platform_setup("union")
             self.visit_union(rules)
         elif "alias" in rules:
             if rules["alias"].next_sibling.type in _BITFLAG_FILTER:
                 self._parsing_bitflag = True
                 return
 
+            _platform_setup("alias")
             self.visit_alias(rules)
         elif "callback" in rules:
+            _platform_setup("callback")
             self.visit_callback(rules)
         elif "fn_macro" in rules:
+            _platform_setup("fn_macro")
             self.visit_fn_macro(rules)
         elif "const" in rules:
-            if not self._parsing_bitflag:
+            if not self._parsing_bitflag or self._platform_node_id:
+                # skip constants inside bitflags and platform-specific code
+                _platform_setup("const")
                 self.visit_const(rules)
+        elif "cond" in rules:
+            self._platforms = _PLATFORM_REGEX.findall(rules["cond.text"].text.decode())
+            if not self._platforms:
+                return
+
+            self._platform_node_id = rules["cond"].id
+            return
+
+        if self._platform_node_id:
+            self.end_platform_code()
+
+    @abstractmethod
+    def start_platform_code(self, platforms: list[str]):
+        """
+        Start a platform-specific code block.
+
+        This function is called once per platform-specific data instead of once per block.
+        Thus, in the following code block:
+
+        ```c
+        #ifdef SDL_PLATFORM_WINDOWS
+            extern void SDL_foo();
+
+            extern void SDL_bar();
+        #endif
+        ```
+
+        `start_platform_code` will be called once with `platforms` being `["SDL_PLATFORM_WINDOWS"]`
+        for both `SDL_foo` and `SDL_bar`.
+
+
+        `platforms` is a list of all the platforms that support the following code block.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def end_platform_code(self):
+        """
+        End a platform-specific code block.
+
+        Similarly to `start_platform_code`, this function is called once per platform-specific data.
+        Refer to `start_platform_code` for more information.
+        """
+        raise NotImplementedError()
 
     @abstractmethod
     def visit_function(self, rules: _Rules):

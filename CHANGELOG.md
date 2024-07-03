@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## [Unreleased]
+
+### Added
+
+- Experimental support for platform-dependent code. You should now define `start_platform_code` and `end_platform_code` on your generators to be run on each item inside a platform-specific code. The built-in generators already have support for these changes. Please refer to the documentation inside `visitor.py` for more.
+- README on the C++ generator discussing most common topics related to it.
+
+### Changed
+
+- Rewrote the C# generator to use functions from `utils`.
+
+
 ## 2024-06-28
 
 ### Added
