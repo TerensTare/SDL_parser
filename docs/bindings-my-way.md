@@ -3,19 +3,23 @@ If you want to generate bindings to a language that is not currently supported, 
 
 ## Setting up your generator
 
-First you need to setup your generator by running:
+First you need to setup your generator by making a new file in `gen/` with the following content:
 
-```
-python sdl_parser.py --new <some-name>
-```
+```py
+from visitor import VisitorBase
 
-This should create a file named `<some-name>.py` inside the `gen` folder with the needed structure.
+# important: class should be named Visitor and derive from VisitorBase
+class Visitor(VisitorBase):
+    pass
+    
+_ = Visitor("") # this will error if you don't implement all needed methods. Your type checker will tell you what you need to derive. You can remove this line when implementing all methods.
+```
 
 ## Doing the rest of the job
 
 ![](image.png)
 
-Now all that's left is a matter replacing all those `raise`s with your code and calling `py sdl_parser.py gen.<your-gen-file> --my-args=my-values` when you are done. The `visitor.Visitor` class contains documentation showing the structure of the data that is passed to each of the `visit_*` methods. For further help, you can check the already present generators such as the [C++](../gen/cpp.py) one. As for the constructor parameters, they are passed from the command lines. Keyword parameters (those after `*` in the constructor) need to be specified if they don't have a default value (or else the script will tell you to specify them and terminate) and can be omitted if they have a default value.
+Now all that's left is a matter of implementing all the needed abstract methods and calling `py sdl_parser.py gen.<your-gen-file> --my-args=my-values` when you are done. The `visitor.VisitorBase` class contains documentation showing the structure of the data that is passed to each of the `visit_*` methods. For further help, you can check the already present generators such as the [C++](../gen/cpp.py) one. As for the constructor parameters, they are passed from the command lines. Keyword parameters (those after `*` in the constructor) need to be specified if they don't have a default value (or else the script will tell you to specify them and terminate) and can be omitted if they have a default value.
 
 ## Adding pre-made files
 

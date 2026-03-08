@@ -7,6 +7,7 @@ __pycache__/
 
 # custom files
 TODO.md
+include/
 
 # C extensions
 *.so

@@ -6,16 +6,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
-## [Unreleased]
+## 2026-03-08
 
 ### Added
 
+- Type-safe parameters to `visit_*` functions. Each function gets its own parameter type defined in [rules.py](./rules.py). The members of the classes correspond to the names of the old dictionary keys but replacing `.` with `_` (eg. `function.name` is `function_name` in `FuncRules`). The base rules (eg. `function`) are called `root` and are the "common denominator" for each rule type.
 - Experimental support for platform-dependent code. You should now define `start_platform_code` and `end_platform_code` on your generators to be run on each item inside a platform-specific code. The built-in generators already have support for these changes. Please refer to the documentation inside `visitor.py` for more.
 - README on the C++ generator discussing most common topics related to it.
 
 ### Changed
 
+- Updated tree-sitter to 0.25.2.
 - Rewrote the C# generator to use functions from `utils`.
+- Rewrote the C++ generator to use the new `VisitorBase` API.
+- Updated docs to reflect the new `VisitorBase` API.
+- Overall project cleanup to make it easier to maintain.
+- Fixed a bug in the C++ parser not correctly handling `SDLK_K`.
+
+### Removed
+
+- The `--new` flag for the command. See [docs](./docs/bindings-my-way.md) on how to make your own generator now.
 
 
 ## 2024-06-28

@@ -1,12 +1,26 @@
-from abc import ABCMeta, abstractmethod
-from getopt import getopt
-import inspect
-import sys
 import re
+from abc import ABCMeta, abstractmethod
 
-from tree_sitter import Node
+from rules import (
+    AliasRules,
+    BitflagRules,
+    CallbackRules,
+    CondRules,
+    ConstRules,
+    EnumRules,
+    FnMacroRules,
+    FuncRules,
+    OpaqueRules,
+    Rules,
+    StructRules,
+    UnionRules,
+    _MultiRules,
+    _parse_rules,
+    _platform_id,
+)
 
-_Rules = dict[str, Node | list[Node]]
+# TODO:
+# special handling for properties
 
 
 _BITFLAG_FILTER = {"preproc_def", "preproc_function_def"}
@@ -14,89 +28,10 @@ _BITFLAG_FILTER = {"preproc_def", "preproc_function_def"}
 _PLATFORM_REGEX = re.compile(r"\bSDL_PLATFORM_\w+\b")
 
 
-class Visitor(metaclass=ABCMeta):
+class VisitorBase(metaclass=ABCMeta):
     def __init__(self, unit: str) -> None:
         # The `unit` parameter is there just to tell you that's all you have
-
-        # There is no query that can tell tree sitter to
-        # ignore typedef/#defines that are used for bitflags
-        # so we have to do it manually
-        self._parsing_bitflag = False
-        self._platforms = []
-        self._platform_node_id = None
-
-    def __del__(self) -> None:
-        # empty for now
         pass
-
-    def visit(self, rules: _Rules):
-        # TODO: check if this is the child of the `cond` node, if the node is not `None`
-        # when not the child, then the `cond` node becomes None
-
-        def _platform_setup(rule: str):
-            cursor = rules[rule]
-
-            if self._platform_node_id:
-                while (
-                    cursor.parent
-                    and cursor.parent.parent
-                    and cursor.parent.parent.type != "translation_unit"
-                ):
-                    cursor = cursor.parent
-
-                if cursor.id != self._platform_node_id:
-                    self._platform_node_id = None
-
-            if self._platform_node_id:
-                self.start_platform_code(self._platforms)
-
-        if "function" in rules:
-            _platform_setup("function")
-            self.visit_function(rules)
-        elif "bitflag" in rules:
-            _platform_setup("bitflag")
-            self.visit_bitflag(rules)
-            self._parsing_bitflag = False
-        elif "enum" in rules:
-            _platform_setup("enum")
-            self.visit_enum(rules)
-        elif "opaque" in rules:
-            _platform_setup("opaque")
-            self.visit_opaque(rules)
-        elif "struct" in rules:
-            _platform_setup("struct")
-            self.visit_struct(rules)
-        elif "union" in rules:
-            _platform_setup("union")
-            self.visit_union(rules)
-        elif "alias" in rules:
-            if rules["alias"].next_sibling.type in _BITFLAG_FILTER:
-                self._parsing_bitflag = True
-                return
-
-            _platform_setup("alias")
-            self.visit_alias(rules)
-        elif "callback" in rules:
-            _platform_setup("callback")
-            self.visit_callback(rules)
-        elif "fn_macro" in rules:
-            _platform_setup("fn_macro")
-            self.visit_fn_macro(rules)
-        elif "const" in rules:
-            if not self._parsing_bitflag or self._platform_node_id:
-                # skip constants inside bitflags and platform-specific code
-                _platform_setup("const")
-                self.visit_const(rules)
-        elif "cond" in rules:
-            self._platforms = _PLATFORM_REGEX.findall(rules["cond.text"].text.decode())
-            if not self._platforms:
-                return
-
-            self._platform_node_id = rules["cond"].id
-            return
-
-        if self._platform_node_id:
-            self.end_platform_code()
 
     @abstractmethod
     def start_platform_code(self, platforms: list[str]):
@@ -133,7 +68,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_function(self, rules: _Rules):
+    def visit_function(self, rules: FuncRules):
         """
         Visit a function node.
 
@@ -156,7 +91,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_enum(self, rules: _Rules):
+    def visit_enum(self, rules: EnumRules):
         """
         Visit an enum node.
 
@@ -171,7 +106,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_opaque(self, rules: _Rules):
+    def visit_opaque(self, rules: OpaqueRules):
         """
         Visit an opaque node.
 
@@ -184,7 +119,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_struct(self, rules: _Rules):
+    def visit_struct(self, rules: StructRules):
         """
         Visit a non-opaque struct node.
 
@@ -199,7 +134,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_union(self, rules: _Rules):
+    def visit_union(self, rules: UnionRules):
         """
         Visit a union node.
 
@@ -214,7 +149,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_bitflag(self, rules: _Rules):
+    def visit_bitflag(self, rules: BitflagRules):
         """
         Visit a bitflag node.
 
@@ -234,7 +169,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_alias(self, rules: _Rules):
+    def visit_alias(self, rules: AliasRules):
         """
         Visit an alias node.
 
@@ -249,7 +184,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_callback(self, rules: _Rules):
+    def visit_callback(self, rules: CallbackRules):
         """
         Visit a callback node.
 
@@ -268,7 +203,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_fn_macro(self, rules: _Rules):
+    def visit_fn_macro(self, rules: FnMacroRules):
         """
         Visit a function-like macro node.
 
@@ -285,7 +220,7 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def visit_const(self, rules: _Rules):
+    def visit_const(self, rules: ConstRules):
         """
         Visit a macro constant node.
 
@@ -300,51 +235,76 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-def visitor(cls):
-    has_init = cls.__dict__.__contains__("__init__")
-    has_del = cls.__dict__.__contains__("__del__")
+class _Visitor:
+    _inner: VisitorBase
 
-    mod = cls.__module__
-    cls = type("Visitor", (Visitor,), dict(cls.__dict__))  # add base
+    def __init__(self, cls: type[VisitorBase], unit: str, *args, **kwargs) -> None:
+        self._inner = cls(unit, *args, **kwargs)
+        # The `unit` parameter is there just to tell you that's all you have
 
-    if has_init:
-        # these are done by default if no __init__ is specified
-        old_init = cls.__init__
+        # There is no query that can tell tree sitter to
+        # ignore typedef/#defines that are used for bitflags
+        # so we have to do it manually
+        self._parsing_bitflag = False
+        self._platforms = []
+        self._platform_node_id = None
 
-        def __init__(self, *args):
-            super(cls, self).__init__(*args)
+    def visit(self, rules: _MultiRules):
+        # TODO: check if this is the child of the `cond` node, if the node is not `None`
+        # when not the child, then the `cond` node becomes None
 
-            all_args = inspect.getfullargspec(old_init)
+        def _platform_setup(rule: Rules):
+            self._platform_node_id = _platform_id(rule, self._platform_node_id)
+            if self._platform_node_id:
+                self._inner.start_platform_code(self._platforms)
 
-            flag_names = set(all_args.kwonlyargs)
-            defaults = all_args.kwonlydefaults or {}
+        parsed = _parse_rules(rules)
+        match parsed:
+            case FuncRules():
+                _platform_setup(parsed)
+                self._inner.visit_function(parsed)
+            case BitflagRules():
+                _platform_setup(parsed)
+                self._inner.visit_bitflag(parsed)
+                self._parsing_bitflag = False
+            case EnumRules():
+                _platform_setup(parsed)
+                self._inner.visit_enum(parsed)
+            case OpaqueRules():
+                _platform_setup(parsed)
+                self._inner.visit_opaque(parsed)
+            case StructRules():
+                _platform_setup(parsed)
+                self._inner.visit_struct(parsed)
+            case UnionRules():
+                _platform_setup(parsed)
+                self._inner.visit_union(parsed)
+            case AliasRules():
+                if parsed.root.next_sibling.type in _BITFLAG_FILTER:
+                    self._parsing_bitflag = True
+                    return
 
-            flags, _ = getopt(
-                sys.argv[2:],
-                shortopts="",
-                longopts=[f"{flag}=" for flag in flag_names],
-            )
+                _platform_setup(parsed)
+                self._inner.visit_alias(parsed)
+            case CallbackRules():
+                _platform_setup(parsed)
+                self._inner.visit_callback(parsed)
+            case FnMacroRules():
+                _platform_setup(parsed)
+                self._inner.visit_fn_macro(parsed)
+            case ConstRules():
+                if not self._parsing_bitflag or self._platform_node_id:
+                    # skip constants inside bitflags and platform-specific code
+                    _platform_setup(parsed)
+                    self._inner.visit_const(parsed)
+            case CondRules():
+                self._platforms = _PLATFORM_REGEX.findall(
+                    parsed.cond_text.text.decode()
+                )
+                if self._platforms:
+                    self._platform_node_id = parsed.root.id
 
-            flags = {k[2:]: v for k, v in flags}
+                return
 
-            for flag in flag_names:
-                if flag not in flags and flag not in defaults:
-                    print(f"Error: missing flag `{flag}`")
-                    sys.exit(1)
-
-            old_init(self, *args, **flags)
-
-        cls.__init__ = __init__
-
-    if has_del:
-        old_del = cls.__del__
-
-        def __del__(self):
-            old_del(self)
-            super(cls, self).__del__()
-
-        cls.__del__ = __del__
-
-    sys.modules[mod].__dict__["Visitor"] = cls  # add to module
-
-    return cls
+        if self._platform_node_id:
+            self._inner.end_platform_code()

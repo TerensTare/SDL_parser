@@ -1,9 +1,20 @@
 from tree_sitter import Node
 
-
+from rules import (
+    AliasRules,
+    BitflagRules,
+    CallbackRules,
+    ConstRules,
+    EnumRules,
+    FnMacroRules,
+    FuncRules,
+    OpaqueRules,
+    StructRules,
+    UnionRules,
+)
 from setup import PATH_BY_UNIT
-from visitor import visitor
 from utils import only
+from visitor import VisitorBase
 
 _PRELUDE: str = """
 module;
@@ -60,10 +71,10 @@ export namespace {2}
 
 def _cut_similarity(model: str, target: str) -> str:
     mi, ti = 0, 0
-    f = len(model)
+    f, tlen = len(model), len(target)
     last = 0
 
-    while mi < f:
+    while mi < f and ti < tlen:
         if target[ti] == "_":
             ti += 1
             last = ti
@@ -75,7 +86,7 @@ def _cut_similarity(model: str, target: str) -> str:
 
         mi += 1
 
-    if target[ti] == "_":
+    if ti < tlen and target[ti] == "_":
         ti += 1
     else:
         ti = last
@@ -88,8 +99,7 @@ def _cut_similarity(model: str, target: str) -> str:
     return target[ti:]
 
 
-@visitor
-class CppVisitor:
+class Visitor(VisitorBase):
     def __init__(
         self,
         unit: str,
@@ -105,6 +115,7 @@ class CppVisitor:
             module (str, optional): The module name to use. Defaults to "sdl.{ext}".
             namespace (str, optional): The namespace to use. Defaults to "sdl::{ext}".
         """
+        super().__init__(unit)
 
         self._enum = set()
 
@@ -119,7 +130,7 @@ class CppVisitor:
         self._file.write(_PRELUDE.format(PATH_BY_UNIT[unit], mod, ns))
 
     def __del__(self) -> None:
-        self._file.write("}\n")
+        self._file.write("}\n\n#undef BITFLAG_ENUM\n#undef REGULAR_ENUM\n")
         self._file.close()
 
     def start_platform_code(self, platforms: list[str]):
@@ -130,14 +141,14 @@ class CppVisitor:
     def end_platform_code(self):
         self._file.write("#endif\n\n")
 
-    def visit_function(self, rules: dict[str, Node | list[Node]]):
-        name = rules["function.name"]
-        ret = rules["function.return"].text.decode()
-        params = rules["function.params"]
+    def visit_function(self, rules: FuncRules):
+        name = rules.function_name
+        ret = rules.function_return.text.decode()
+        params = rules.function_params
 
-        if "function.return_ptr" in rules:
+        if rules.function_return_ptr:
             ret += "*"
-        if any(only("type_qualifier", rules["function.decl"])):
+        if any(only("type_qualifier", rules.function_decl)):
             ret = "const " + ret
 
         body_ret = "" if ret == "void" else "return "
@@ -224,9 +235,9 @@ class CppVisitor:
     }}
 """)
 
-    def visit_enum(self, rules: dict[str, Node | list[Node]]):
-        name = rules["enum.name"]
-        entries = rules["enum.entries"]
+    def visit_enum(self, rules: EnumRules):
+        name = rules.enum_name
+        entries = rules.enum_entries
 
         self._file.write(f"""
     enum class {name.text[4:].decode()}
@@ -248,34 +259,34 @@ class CppVisitor:
 
         pass
 
-    def visit_opaque(self, rules: dict[str, Node | list[Node]]):
-        name = rules["opaque.name"]
+    def visit_opaque(self, rules: OpaqueRules):
+        name = rules.opaque_name
 
         al = name.text[4:].decode() if name.text[4:] == b"_" else name.text.decode()
 
         self._file.write(f"\n    using {al} = {name.text.decode()};\n")
         pass
 
-    def visit_struct(self, rules: dict[str, Node | list[Node]]):
-        name = rules["struct.name"]
+    def visit_struct(self, rules: StructRules):
+        name = rules.struct_name
 
         self._file.write(
             f"\n    using {name.text[4:].decode()} = {name.text.decode()};\n"
         )
         pass
 
-    def visit_union(self, rules: dict[str, Node | list[Node]]):
-        name = rules["union.name"]
+    def visit_union(self, rules: UnionRules):
+        name = rules.union_name
 
         self._file.write(
             f"\n    using {name.text[4:].decode()} = {name.text.decode()};\n"
         )
         pass
 
-    def visit_bitflag(self, rules: dict[str, Node | list[Node]]):
-        name = rules["bitflag.name"]
-        ty = rules["bitflag.type"]
-        flags = rules["flag"]
+    def visit_bitflag(self, rules: BitflagRules):
+        name = rules.bitflag_name
+        ty = rules.bitflag_type
+        flags = rules.flags
 
         self._enum.add(name.text[4:].decode())
         name = name.text[4:].decode()
@@ -298,23 +309,23 @@ class CppVisitor:
 
         pass
 
-    def visit_alias(self, rules: dict[str, Node | list[Node]]):
-        name = rules["alias.name"]
-        ty = rules["alias.type"]
+    def visit_alias(self, rules: AliasRules):
+        name = rules.alias_name
+        ty = rules.alias_type
 
         self._file.write(
             f"\n    using {name.text[4:].decode()} = {ty.text.decode()};\n"
         )
 
-    def visit_callback(self, rules: dict[str, Node | list[Node]]):
+    def visit_callback(self, rules: CallbackRules):
         pass
 
-    def visit_fn_macro(self, rules: dict[str, Node | list[Node]]):
+    def visit_fn_macro(self, rules: FnMacroRules):
         pass
 
-    def visit_const(self, rules: dict[str, Node | list[Node]]):
-        name = rules["const.name"].text
-        value = rules["const.value"].text
+    def visit_const(self, rules: ConstRules):
+        name = rules.const_name.text
+        value = rules.const_value.text
 
         # these are macros that alias to other functions, we don't need them
         # so just skip them

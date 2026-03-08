@@ -1,18 +1,16 @@
-from tree_sitter import Language, Node, Parser, Query
 import tree_sitter_c as tsc
+from tree_sitter import Language, Node, Parser, Query, QueryCursor
 
-
-C_LANGUAGE = Language(tsc.language())
-
-_PARSER = Parser(C_LANGUAGE)
+_C_LANGUAGE = Language(tsc.language())
+_PARSER = Parser(_C_LANGUAGE)
 
 
 def parser():
     return _PARSER
 
 
-def query(text: str) -> Query:
-    return Query(C_LANGUAGE, text)
+def query(text: str) -> QueryCursor:
+    return QueryCursor(Query(_C_LANGUAGE, text))
 
 
 def only(ty: str, node: Node):
