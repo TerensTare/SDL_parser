@@ -210,23 +210,6 @@ Rules = (
 )
 
 
-# rule: any type from this file
-def _platform_id(rule: Rules, platform_id: Optional[int]) -> Optional[int]:
-    if platform_id:
-        cursor = rule.root
-        while (
-            cursor.parent
-            and cursor.parent.parent
-            and cursor.parent.parent.type != "translation_unit"
-        ):
-            cursor = cursor.parent
-
-        if cursor.id != platform_id:
-            platform_id = None
-
-    return platform_id
-
-
 # TODO: inline calls
 def _parse_rules(rules: _MultiRules) -> Rules:
     if "function" in rules:

@@ -16,7 +16,6 @@ from rules import (
     UnionRules,
     _MultiRules,
     _parse_rules,
-    _platform_id,
 )
 
 # TODO:
@@ -247,16 +246,21 @@ class _Visitor:
         # so we have to do it manually
         self._parsing_bitflag = False
         self._platforms = []
-        self._platform_node_id = None
+        self._platform_block = None
 
     def visit(self, rules: _MultiRules):
         # TODO: check if this is the child of the `cond` node, if the node is not `None`
         # when not the child, then the `cond` node becomes None
 
         def _platform_setup(rule: Rules):
-            self._platform_node_id = _platform_id(rule, self._platform_node_id)
-            if self._platform_node_id:
-                self._inner.start_platform_code(self._platforms)
+            if self._platform_block:
+                if (
+                    rule.root.start_point.row >= self._platform_block.start_point.row
+                    and rule.root.end_point.row <= self._platform_block.end_point.row
+                ):
+                    self._inner.start_platform_code(self._platforms)
+                else:  # reset
+                    self._platform_block = None
 
         parsed = _parse_rules(rules)
         match parsed:
@@ -293,7 +297,7 @@ class _Visitor:
                 _platform_setup(parsed)
                 self._inner.visit_fn_macro(parsed)
             case ConstRules():
-                if not self._parsing_bitflag or self._platform_node_id:
+                if not self._parsing_bitflag or self._platform_block:
                     # skip constants inside bitflags and platform-specific code
                     _platform_setup(parsed)
                     self._inner.visit_const(parsed)
@@ -302,9 +306,9 @@ class _Visitor:
                     parsed.cond_text.text.decode()
                 )
                 if self._platforms:
-                    self._platform_node_id = parsed.root.id
+                    self._platform_block = parsed.root
 
                 return
 
-        if self._platform_node_id:
+        if self._platform_block:
             self._inner.end_platform_code()
