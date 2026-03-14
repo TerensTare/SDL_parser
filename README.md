@@ -40,7 +40,9 @@ enum ScaleMode
     NEAREST = SDL_SCALEMODE_NEAREST,
     LINEAR = SDL_SCALEMODE_LINEAR,
     PIXELART = SDL_SCALEMODE_PIXELART,
-};```
+};
+```
+
 - Opaque: An opaque type definition, eg. `typedef struct SDL_Window SDL_Window;`
 - Struct: Just a regular non-opaque `struct`.
 - Union: Just a regular union definition.
