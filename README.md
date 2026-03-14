@@ -34,12 +34,12 @@ typedef Uint32 SDL_SurfaceFlags;
 ```
 - Enum: Just a regular `enum`, eg.
 ```cpp
-enum ScaleMode
+enum SDL_ScaleMode
 {
-    INVALID = SDL_SCALEMODE_INVALID,
-    NEAREST = SDL_SCALEMODE_NEAREST,
-    LINEAR = SDL_SCALEMODE_LINEAR,
-    PIXELART = SDL_SCALEMODE_PIXELART,
+    SDL_SCALEMODE_INVALID,
+    SDL_SCALEMODE_NEAREST,
+    SDL_SCALEMODE_LINEAR,
+    SDL_SCALEMODE_PIXELART,
 };
 ```
 
