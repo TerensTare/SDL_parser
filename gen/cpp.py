@@ -9,6 +9,7 @@ from rules import (
     FnMacroRules,
     FuncRules,
     OpaqueRules,
+    PropertyRules,
     StructRules,
     UnionRules,
 )
@@ -322,6 +323,16 @@ class Visitor(VisitorBase):
 
     def visit_fn_macro(self, rules: FnMacroRules):
         pass
+
+    def visit_property(self, rules: PropertyRules):
+        name = rules.prop_name.text
+        assert name is not None
+        name = name[name.find(b"PROP_") + 5 :]
+        key = rules.prop_key.text
+
+        self._file.write(
+            f"\n    namespace props\n    {{\n        constexpr auto {name.decode()} = {key.decode()};\n    }}\n"
+        )
 
     def visit_const(self, rules: ConstRules):
         name = rules.const_name.text
