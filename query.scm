@@ -106,7 +106,21 @@
     ]
 ) @alias
 
-(preproc_def name: (_) @const.name value: (_) @const.value) @const
+; TODO: handle properties of "extensions" (eg. TTF_PROP_*)
+; TODO: probably best to merge with `const` into a single query and separate with `#set!`
+; ^ this works well because now you abstract the dict, you only expose `Rule` types
+(preproc_def
+    name: (_) @prop.name
+        (#match? @prop.name "^.*_PROP_.*$")
+    value: (_) @prop.key
+) @prop
+
+; HACK: do something better
+(preproc_def
+    name: (_) @const.name
+        (#not-match? @const.name "^.*_PROP_.*$")
+    value: (_) @const.value
+) @const
 
 [
     (preproc_if condition: (_) @cond.text)

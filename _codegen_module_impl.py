@@ -6,6 +6,7 @@ import sys
 import warnings
 
 from pcpp.pcmd import CmdPreprocessor
+from tree_sitter import QueryCursor
 
 import utils
 from setup import PATH_BY_UNIT, SDL_ROOT
@@ -204,7 +205,22 @@ def parse_query(file: str):
     return query
 
 
-def parse_extension(gen: str, ext: str, query, visitor: type[VisitorBase]):
+def parse_main(gen: str, query: QueryCursor, visitor: type[VisitorBase]):
+    tree = parse_file(
+        "-I",
+        SDL_ROOT,
+        input=f"{SDL_ROOT}/{PATH_BY_UNIT['SDL']}",
+        output=f"out/{gen}/pp/SDL.i",
+    )
+    root = tree.root_node
+
+    vis = _Visitor(visitor, "SDL")
+
+    for _, rules in query.matches(root):
+        vis.visit(rules)
+
+
+def parse_extension(gen: str, ext: str, query: QueryCursor, visitor: type[VisitorBase]):
     sdl_ext = f"SDL_{ext}"
     tree = parse_file(
         input=f"{SDL_ROOT}/{PATH_BY_UNIT[sdl_ext]}",
@@ -232,18 +248,7 @@ def codegen(mod_name: str):
     visitor = getattr(mod, _vis[0][0])
     query = parse_query("query.scm")
 
-    tree = parse_file(
-        "-I",
-        SDL_ROOT,
-        input=f"{SDL_ROOT}/{PATH_BY_UNIT['SDL']}",
-        output=f"out/{gen}/pp/SDL.i",
-    )
-    root = tree.root_node
-
-    vis = _Visitor(visitor, "SDL")
-
-    for _, rules in query.matches(root):
-        vis.visit(rules)
+    parse_main(gen, query, visitor)
 
     for ext in PATH_BY_UNIT.keys():
         if ext == "SDL":

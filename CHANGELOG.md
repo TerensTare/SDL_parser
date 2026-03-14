@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-03-14
+
+### Added
+
+- Added support for detecting properties. Properties are macros with `_PROP_` on their name (eg. `SDL_PROP_NAME_STRING`) and a string for their value. Visitors must now define `visit_property` to handle such constructs.
+
+
 ## 2026-03-12
 
 ### Fixed

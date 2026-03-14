@@ -1,4 +1,5 @@
 import re
+import sys
 from abc import ABCMeta, abstractmethod
 
 from rules import (
@@ -11,6 +12,7 @@ from rules import (
     FnMacroRules,
     FuncRules,
     OpaqueRules,
+    PropertyRules,
     Rules,
     StructRules,
     UnionRules,
@@ -70,22 +72,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_function(self, rules: FuncRules):
         """
         Visit a function node.
-
-        Contents of `rules` are:
-
-        function.docs - documentation of the function
-
-        function.name - name of the function
-
-        function.params - node that has all the parameters (if any); check the children for each parameter
-
-        function.return_ptr - present if the return type is a pointer
-
-        function.return - node that has the return type of the function
-
-        function.decl - the entire function declaration, without the docs
-
-        function - the entire function node (docs + declaration)
         """
         raise NotImplementedError()
 
@@ -93,14 +79,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_enum(self, rules: EnumRules):
         """
         Visit an enum node.
-
-        Contents of `rules` are:
-
-        enum.name - name of the enum
-
-        enum.entries - node that has all the entries of the enum; check the children for each entry
-
-        enum - the entire enum declaration
         """
         raise NotImplementedError()
 
@@ -108,12 +86,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_opaque(self, rules: OpaqueRules):
         """
         Visit an opaque node.
-
-        Contents of `rules` are:
-
-        opaque.name - name of the opaque type
-
-        opaque - the entire opaque type declaration
         """
         raise NotImplementedError()
 
@@ -121,14 +93,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_struct(self, rules: StructRules):
         """
         Visit a non-opaque struct node.
-
-        Contents of `rules` are:
-
-        struct.name - name of the struct
-
-        struct.members - node that has all the members of the struct; check the children for each member
-
-        struct - the entire struct declaration
         """
         raise NotImplementedError()
 
@@ -136,14 +100,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_union(self, rules: UnionRules):
         """
         Visit a union node.
-
-        Contents of `rules` are:
-
-        union.name - name of the union
-
-        union.members - node that has all the members of the union; check the children for each member
-
-        union - the entire union declaration
         """
         raise NotImplementedError()
 
@@ -151,19 +107,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_bitflag(self, rules: BitflagRules):
         """
         Visit a bitflag node.
-
-        Contents of `rules` are:
-
-        bitflag.name - name of the bitflag
-
-        bitflag.type - type of the bitflag
-
-
-        flag - array of all the flags
-
-        flag.name - array of all the flag names
-
-        flag.value - array of all the flag values
         """
         raise NotImplementedError()
 
@@ -171,14 +114,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_alias(self, rules: AliasRules):
         """
         Visit an alias node.
-
-        Contents of `rules` are:
-
-        alias.name - name of the alias
-
-        alias.type - type of the alias
-
-        alias - the entire alias declaration
         """
         raise NotImplementedError()
 
@@ -186,18 +121,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_callback(self, rules: CallbackRules):
         """
         Visit a callback node.
-
-        Contents of `rules` are:
-
-        callback.name - name of the callback
-
-        callback.params - node that has all the parameters (if any); check the children for each parameter
-
-        callback.return_ptr - present if the return type is a pointer
-
-        callback.return - node that has the return type of the callback
-
-        callback - the entire callback declaration
         """
         raise NotImplementedError()
 
@@ -205,16 +128,13 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_fn_macro(self, rules: FnMacroRules):
         """
         Visit a function-like macro node.
+        """
+        raise NotImplementedError()
 
-        Contents of `rules` are:
-
-        fn_macro.name - name of the macro
-
-        fn_macro.params - node that has all the parameters (if any); check the children for each parameter
-
-        fn_macro.body - the body of the macro
-
-        fn_macro - the entire macro declaration
+    @abstractmethod
+    def visit_property(self, rules: PropertyRules):
+        """
+        Visit a property macro node. Property macros start with `SDL_PROP` and their value is a string.
         """
         raise NotImplementedError()
 
@@ -222,14 +142,6 @@ class VisitorBase(metaclass=ABCMeta):
     def visit_const(self, rules: ConstRules):
         """
         Visit a macro constant node.
-
-        Contents of `rules` are:
-
-        const.name - name of the constant
-
-        const.value - value of the constant
-
-        const - the entire constant declaration
         """
         raise NotImplementedError()
 
@@ -297,7 +209,7 @@ class _Visitor:
                 _platform_setup(parsed)
                 self._inner.visit_fn_macro(parsed)
             case ConstRules():
-                if not self._parsing_bitflag or self._platform_block:
+                if not self._parsing_bitflag:
                     # skip constants inside bitflags and platform-specific code
                     _platform_setup(parsed)
                     self._inner.visit_const(parsed)
@@ -309,6 +221,13 @@ class _Visitor:
                     self._platform_block = parsed.root
 
                 return
+            case PropertyRules():
+                # TODO: are there properties in platform-specific blocks? Right now none
+                self._inner.visit_property(parsed)
+
+            case _:
+                print(f"Internal error: Unhandled rule type {type(parsed)}")
+                sys.exit(1)
 
         if self._platform_block:
             self._inner.end_platform_code()

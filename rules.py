@@ -168,6 +168,21 @@ def _alias_rules(rules: _MultiRules) -> AliasRules:
 
 
 @dataclass
+class PropertyRules:
+    root: Node
+    prop_name: Node
+    prop_key: Node
+
+
+def _property_rules(rules: _MultiRules) -> PropertyRules:
+    return PropertyRules(
+        root=_one(rules, "prop"),
+        prop_name=_one(rules, "prop.name"),
+        prop_key=_one(rules, "prop.key"),
+    )
+
+
+@dataclass
 class ConstRules:
     root: Node
     const_name: Node
@@ -205,6 +220,7 @@ Rules = (
     | AliasRules
     | CallbackRules
     | FnMacroRules
+    | PropertyRules
     | ConstRules
     | CondRules
 )
@@ -234,5 +250,7 @@ def _parse_rules(rules: _MultiRules) -> Rules:
         return _const_rules(rules)
     elif "cond" in rules:
         return _cond_rules(rules)
+    elif "prop" in rules:
+        return _property_rules(rules)
 
     assert False, "Unknown rule"
